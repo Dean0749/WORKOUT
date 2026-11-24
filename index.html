@@ -648,9 +648,10 @@
 
   <!-- 核心 JavaScript 邏輯 -->
   <script>
-    /**
-     * 運動部位與常用動作預設設定（淡灰咖大地色系）
-     */
+    const STORAGE_KEY = 'd_workout_greige_data_v2';
+    const WEEK_DAYS_SHORT = ['一', '二', '三', '四', '五', '六', '日'];
+    const TYPE_ORDER = ['push', 'pull', 'legs', 'core'];
+
     const WORKOUT_TYPES = {
       push: {
         id: 'push',
@@ -658,9 +659,9 @@
         en: 'PUSH',
         desc: '胸 / 肩 / 三頭',
         dotColor: '#C69C7B',
-        badgeBg: 'bg-[#C69C7B]/15',
-        badgeText: 'text-[#876246]',
         borderActive: 'border-[#C69C7B]',
+        badgeBg: 'bg-[#C69C7B]/20',
+        badgeText: 'text-[#8C5E3C]',
         presets: ['槓鈴臥推', '上斜啞鈴臥推', '啞鈴肩推', '啞鈴側平舉', '繩索三頭下壓', '雙槓撐體']
       },
       pull: {
@@ -669,10 +670,10 @@
         en: 'PULL',
         desc: '背 / 二頭 / 後三角',
         dotColor: '#8B9A8C',
-        badgeBg: 'bg-[#8B9A8C]/15',
-        badgeText: 'text-[#556456]',
         borderActive: 'border-[#8B9A8C]',
-        presets: ['滑輪下拉', '槓鈴划船', '坐姿水平划船', '引體向上', '臉拉 Face Pull', '啞鈴二頭彎舉']
+        badgeBg: 'bg-[#8B9A8C]/20',
+        badgeText: 'text-[#4C5E4D]',
+        presets: ['滑輪下拉', '槓鈴划船', '坐姿划船', '引體向上', '臉拉 Face Pull', '啞鈴二頭彎舉']
       },
       legs: {
         id: 'legs',
@@ -680,10 +681,10 @@
         en: 'LEGS',
         desc: '股四頭 / 腿後 / 臀',
         dotColor: '#9E8576',
-        badgeBg: 'bg-[#9E8576]/15',
-        badgeText: 'text-[#6A5548]',
         borderActive: 'border-[#9E8576]',
-        presets: ['槓鈴深蹲', '羅馬尼亞硬舉 RDL', '腿推舉 Leg Press', '保加利亞分腿蹲', '俯臥腿後勾', '坐姿提踵']
+        badgeBg: 'bg-[#9E8576]/20',
+        badgeText: 'text-[#6E5445]',
+        presets: ['槓鈴深蹲', '腿推機 Leg Press', '羅馬尼亞硬舉', '保加利亞分腿蹲', '坐姿腿屈伸', '俯臥腿後勾']
       },
       core: {
         id: 'core',
@@ -691,43 +692,23 @@
         en: 'CORE',
         desc: '腹直肌 / 穩定肌群',
         dotColor: '#B5A384',
-        badgeBg: 'bg-[#B5A384]/18',
-        badgeText: 'text-[#75664C]',
         borderActive: 'border-[#B5A384]',
-        presets: ['懸垂舉腿', '繩索捲腹', '棒式支撐', '俄羅斯轉體', '死蟲式 Dead Bug', '健腹輪']
+        badgeBg: 'bg-[#B5A384]/25',
+        badgeText: 'text-[#756448]',
+        presets: ['棒式支撐', '懸垂舉腿', '繩索捲腹', '俄羅斯轉體', '死蟲式', '健腹輪']
       }
     };
 
-    const STORAGE_KEY = 'greige_workout_logs_v2';
-    const LEGACY_STORAGE_KEY = 'greige_workout_logs_v1';
-    const INIT_FLAG_KEY = 'greige_workout_initialized_v2';
-    const WEEK_DAYS_SHORT = ['一', '二', '三', '四', '五', '六', '日'];
-    const TYPE_ORDER = ['push', 'pull', 'legs', 'core'];
-
-    /**
-     * 精選溫暖有質感的訓練打氣小語庫
-     */
     const MOTIVATIONAL_QUOTES = [
       '每一次推起，都在雕刻更強大的自己。',
-      '不必追求完美，只要比昨天的自己多堅持一組。',
-      '紀律是自由的開始，今天也穩穩完成目標吧。',
-      '重量不會說謊，流過的汗水都會變成底氣。',
-      '專注當下這一組，呼吸、發力、穩步突破。',
-      '把訓練寫進日常，時間會給你最誠實的回饋。',
-      '即使今天狀態只有七成，走進訓練就已經贏了。'
+      '不需要完美才開始，開始了才會越來越強。',
+      '一週四天的穩定累積，終將成為你最強的底氣。',
+      '專注當下的每一次呼吸與發力，汗水不會辜負你。',
+      '今天的每一步堅持，都在為未來的自己鋪路。',
+      '哪怕只比上次多 2.5kg 或多一下，都是實實在在的進步。'
     ];
-    let currentQuoteIndex = 0;
 
-    /**
-     * 資料結構:
-     * workoutData[dateStr] = {
-     *   types: ['push', 'core'],
-     *   details: {
-     *     push: [ { name: '槓鈴臥推', sets: [ { weight: 60, reps: 10 } ] } ]
-     *   },
-     *   note: '...'
-     * }
-     */
+    // 狀態管理變數
     let workoutData = {};
     const todayDate = new Date();
     const todayStr = formatDateKey(todayDate);
@@ -736,37 +717,151 @@
     let calendarMonth = todayDate.getMonth();
     let isMonthExpanded = false;
 
-    // 頁面與分頁狀態
-    let currentMainPage = 'home'; // 'home' | 'analytics'
-    let activeAnalyticsSubTab = 'progress'; // 'progress' | 'history'
+    let currentMainPage = 'home';
+    let activeAnalyticsSubTab = 'progress';
     let historyFilter = 'all';
 
-    // 抽屜編輯中的暫存狀態
     let activeDrawerType = null;
     let draftExercises = [];
+    let currentQuoteIndex = 0;
+    let toastTimer = null;
 
-    /**
-     * 初始化應用程式
-     */
+    /* ============================================================
+       日期與基礎工具函式
+       ============================================================ */
+
+    function formatDateKey(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseDateKey(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function getWeekDates(baseDate) {
+      const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+      const day = d.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() + diffToMonday);
+
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        const cur = new Date(monday);
+        cur.setDate(monday.getDate() + i);
+        week.push(cur);
+      }
+      return week;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          workoutData = JSON.parse(raw) || {};
+        }
+      } catch (err) {
+        console.error('讀取儲存資料失敗:', err);
+        workoutData = {};
+      }
+    }
+
+    function saveToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(workoutData));
+      } catch (err) {
+        console.error('寫入儲存資料失敗:', err);
+      }
+    }
+
+    function showToast(message, dotColor = '#C69C7B') {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toast-msg');
+      const dotEl = document.getElementById('toast-dot');
+      if (!toast || !msgEl || !dotEl) return;
+
+      msgEl.textContent = message;
+      dotEl.style.backgroundColor = dotColor;
+
+      toast.classList.remove('opacity-0', '-translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', '-translate-y-3');
+      }, 2400);
+    }
+
+    /* ============================================================
+       應用程式初始化 (init)
+       ============================================================ */
+
     function init() {
       loadFromStorage();
-      const isInitialized = localStorage.getItem(INIT_FLAG_KEY);
-      if (!isInitialized && Object.keys(workoutData).length === 0) {
+
+      // 若首次使用且無任何紀錄，自動載入示範數據讓畫面與圖表完整呈現
+      if (Object.keys(workoutData).length === 0) {
         loadSampleData(false);
-        localStorage.setItem(INIT_FLAG_KEY, '1');
       }
-      // 根據今日日期決定初始打氣小語索引，並支援隨時點擊切換
-      currentQuoteIndex = new Date().getDate() % MOTIVATIONAL_QUOTES.length;
+
+      // 隨機挑選一則今日打氣小語
+      currentQuoteIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
       const quoteEl = document.getElementById('motivational-quote-text');
       if (quoteEl) {
         quoteEl.textContent = MOTIVATIONAL_QUOTES[currentQuoteIndex];
       }
+
       renderAll();
     }
 
-    /**
-     * 優雅切換下一句訓練打氣小語
-     */
+    /* ============================================================
+       主頁面導覽與打氣小語切換
+       ============================================================ */
+
+    function switchMainPage(page) {
+      currentMainPage = page;
+      const homePage = document.getElementById('page-home');
+      const analyticsPage = document.getElementById('page-analytics');
+      const tabHome = document.getElementById('nav-tab-home');
+      const tabAnalytics = document.getElementById('nav-tab-analytics');
+
+      if (page === 'home') {
+        homePage.classList.remove('hidden');
+        homePage.classList.remove('page-transition');
+        void homePage.offsetWidth;
+        homePage.classList.add('page-transition');
+
+        analyticsPage.classList.add('hidden');
+        tabHome.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all bg-greige-800 text-greige-50 shadow-xs';
+        tabAnalytics.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all text-greige-600 hover:text-greige-800';
+        renderHomeViews();
+      } else {
+        homePage.classList.add('hidden');
+        analyticsPage.classList.remove('hidden');
+        analyticsPage.classList.remove('page-transition');
+        void analyticsPage.offsetWidth;
+        analyticsPage.classList.add('page-transition');
+
+        tabAnalytics.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all bg-greige-800 text-greige-50 shadow-xs';
+        tabHome.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all text-greige-600 hover:text-greige-800';
+        renderAnalyticsPage();
+      }
+    }
+
     function cycleMotivationalQuote() {
       const quoteEl = document.getElementById('motivational-quote-text');
       const iconEl = document.getElementById('quote-refresh-icon');
@@ -789,175 +884,34 @@
       }, 160);
     }
 
-    /**
-     * 從 localStorage 讀取並兼容舊版格式
-     */
-    function loadFromStorage() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          workoutData = JSON.parse(raw) || {};
-          return;
-        }
-        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
-        if (legacyRaw) {
-          const legacy = JSON.parse(legacyRaw) || {};
-          Object.keys(legacy).forEach(k => {
-            workoutData[k] = {
-              types: legacy[k].types || [],
-              details: {},
-              note: legacy[k].note || ''
-            };
-          });
-          saveToStorage();
-        }
-      } catch (e) {
-        console.error('讀取運動紀錄失敗:', e);
-        workoutData = {};
-      }
-    }
-
-    /**
-     * 儲存資料至 localStorage
-     */
-    function saveToStorage() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(workoutData));
-      } catch (e) {
-        console.error('儲存運動紀錄失敗:', e);
-      }
-    }
-
-    /**
-     * 主頁面切換：「今日紀錄 (home)」 vs 「紀錄與進步 (analytics)」
-     */
-    function switchMainPage(page) {
-      currentMainPage = page;
-      const homeEl = document.getElementById('page-home');
-      const analyticsEl = document.getElementById('page-analytics');
-      const navHomeBtn = document.getElementById('nav-tab-home');
-      const navAnalyticsBtn = document.getElementById('nav-tab-analytics');
-
-      if (page === 'home') {
-        homeEl.classList.remove('hidden');
-        homeEl.classList.remove('page-transition');
-        void homeEl.offsetWidth;
-        homeEl.classList.add('page-transition');
-        analyticsEl.classList.add('hidden');
-
-        navHomeBtn.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all bg-greige-800 text-greige-50 shadow-xs';
-        navAnalyticsBtn.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all text-greige-600 hover:text-greige-800';
-        renderHomeViews();
-      } else {
-        analyticsEl.classList.remove('hidden');
-        analyticsEl.classList.remove('page-transition');
-        void analyticsEl.offsetWidth;
-        analyticsEl.classList.add('page-transition');
-        homeEl.classList.add('hidden');
-
-        navAnalyticsBtn.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all bg-greige-800 text-greige-50 shadow-xs';
-        navHomeBtn.className = 'btn-press px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold transition-all text-greige-600 hover:text-greige-800';
-        renderAnalyticsPage();
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    /**
-     * 格式化日期物件為 YYYY-MM-DD
-     */
-    function formatDateKey(date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    }
-
-    /**
-     * 將 YYYY-MM-DD 解析為本地 Date 物件
-     */
-    function parseDateKey(dateStr) {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      return new Date(y, m - 1, d);
-    }
-
-    /**
-     * 取得指定日期所在週的週一至週日陣列
-     */
-    function getWeekDates(baseDate) {
-      const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
-      const day = d.getDay();
-      const diffToMonday = day === 0 ? -6 : 1 - day;
-      const monday = new Date(d);
-      monday.setDate(d.getDate() + diffToMonday);
-
-      const week = [];
-      for (let i = 0; i < 7; i++) {
-        const item = new Date(monday);
-        item.setDate(monday.getDate() + i);
-        week.push(item);
-      }
-      return week;
-    }
-
-    /**
-     * 顯示輕量 Toast 通知
-     */
-    let toastTimer = null;
-    function showToast(message, dotColor = '#C69C7B') {
-      const toast = document.getElementById('toast');
-      const msgEl = document.getElementById('toast-msg');
-      const dotEl = document.getElementById('toast-dot');
-
-      msgEl.textContent = message;
-      dotEl.style.backgroundColor = dotColor;
-
-      toast.classList.remove('opacity-0', '-translate-y-3');
-      toast.classList.add('opacity-100', 'translate-y-0');
-
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        toast.classList.remove('opacity-100', 'translate-y-0');
-        toast.classList.add('opacity-0', '-translate-y-3');
-      }, 2400);
-    }
-
-    /**
-     * HTML 安全跳脫輔助
-     */
-    function escapeHtml(str) {
-      if (str === null || str === undefined) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
     /* ============================================================
-       訓練明細抽屜 (Drawer) 互動邏輯
+       訓練明細抽屜控制 (開啟 / 關閉 / 常用動作點選)
        ============================================================ */
 
     function openWorkoutDrawer(typeId) {
-      activeDrawerType = typeId;
       const meta = WORKOUT_TYPES[typeId];
-      const dayRecord = workoutData[selectedDateStr] || { types: [], details: {}, note: '' };
-      const existingExercises = (dayRecord.details && dayRecord.details[typeId]) ? dayRecord.details[typeId] : [];
+      if (!meta) return;
 
-      draftExercises = JSON.parse(JSON.stringify(existingExercises));
+      activeDrawerType = typeId;
+      const existingRecord = workoutData[selectedDateStr] || { types: [], details: {}, note: '' };
+      const existingExercises = (existingRecord.details && existingRecord.details[typeId]) || [];
+
+      // 深拷貝現有動作至草稿
+      draftExercises = existingExercises.map(ex => ({ ...ex }));
 
       const selDate = parseDateKey(selectedDateStr);
       const weekLabel = WEEK_DAYS_SHORT[selDate.getDay() === 0 ? 6 : selDate.getDay() - 1];
+
       document.getElementById('drawer-type-dot').style.backgroundColor = meta.dotColor;
       document.getElementById('drawer-title').textContent = `${meta.label} (${meta.en}) · 訓練明細`;
       document.getElementById('drawer-subtitle').textContent =
-        `${selDate.getFullYear()}年${selDate.getMonth() + 1}月${selDate.getDate()}日 (週${weekLabel})`;
+        `${selDate.getFullYear()}年${selDate.getMonth() + 1}月${selDate.getDate()}日 (週${weekLabel}) · 預設 3 組`;
 
-      const delBtn = document.getElementById('btn-drawer-delete-type');
-      if (dayRecord.types && dayRecord.types.includes(typeId)) {
-        delBtn.classList.remove('hidden');
+      const deleteBtn = document.getElementById('btn-drawer-delete-type');
+      if (existingRecord.types && existingRecord.types.includes(typeId)) {
+        deleteBtn.classList.remove('hidden');
       } else {
-        delBtn.classList.add('hidden');
+        deleteBtn.classList.add('hidden');
       }
 
       document.getElementById('custom-exercise-input').value = '';
@@ -967,65 +921,51 @@
       const backdrop = document.getElementById('workout-drawer-backdrop');
       const panel = document.getElementById('workout-drawer-panel');
       backdrop.classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
-
       requestAnimationFrame(() => {
         panel.classList.remove('translate-y-6', 'opacity-0');
         panel.classList.add('translate-y-0', 'opacity-100');
       });
     }
 
-    /**
-     * 關閉訓練明細抽屜（平滑過渡）
-     */
     function closeWorkoutDrawer() {
       const backdrop = document.getElementById('workout-drawer-backdrop');
       const panel = document.getElementById('workout-drawer-panel');
-      if (!backdrop || !panel) return;
       panel.classList.remove('translate-y-0', 'opacity-100');
       panel.classList.add('translate-y-6', 'opacity-0');
 
       setTimeout(() => {
         backdrop.classList.add('hidden');
-        document.body.style.overflow = '';
         activeDrawerType = null;
+        draftExercises = [];
       }, 220);
     }
 
-    /**
-     * 渲染抽屜內的常用預設動作膠囊
-     */
     function renderDrawerPresets() {
       const wrap = document.getElementById('preset-exercises-wrap');
       wrap.innerHTML = '';
       if (!activeDrawerType) return;
 
       const presets = WORKOUT_TYPES[activeDrawerType].presets || [];
-      const currentNames = new Set(draftExercises.map(e => e.name));
-
       presets.forEach(name => {
-        const isAdded = currentNames.has(name);
+        const isSelected = draftExercises.some(ex => ex.name === name);
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = `btn-press text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 ${
-          isAdded
-            ? 'bg-greige-800 text-greige-50 border-greige-800 font-medium shadow-xs'
-            : 'bg-greige-100 text-greige-700 border-greige-200 hover:border-greige-400 hover:bg-greige-200/60'
-        }`;
-        btn.innerHTML = isAdded
-          ? `<span>✓ ${escapeHtml(name)}</span>`
-          : `<span>+ ${escapeHtml(name)}</span>`;
         btn.onclick = () => togglePresetExercise(name);
+
+        if (isSelected) {
+          btn.className = 'btn-press px-3 py-1.5 rounded-full text-xs font-semibold bg-greige-800 text-greige-50 shadow-xs transition-all';
+          btn.textContent = `✓ ${name}`;
+        } else {
+          btn.className = 'btn-press px-3 py-1.5 rounded-full text-xs font-medium bg-greige-100 hover:bg-greige-200/80 text-greige-700 border border-greige-200 transition-all';
+          btn.textContent = `+ ${name}`;
+        }
         wrap.appendChild(btn);
       });
     }
 
-    /**
-     * 點擊常用動作膠囊：若未加入則加入並自動帶入上次重量組數；若已加入則移除
-     */
     function togglePresetExercise(name) {
-      const idx = draftExercises.findIndex(e => e.name === name);
-      if (idx > -1) {
+      const idx = draftExercises.findIndex(ex => ex.name === name);
+      if (idx !== -1) {
         draftExercises.splice(idx, 1);
       } else {
         addExerciseToDraft(name);
@@ -1034,48 +974,45 @@
       renderDrawerExercises();
     }
 
-    /**
-     * 從自訂輸入框新增動作
-     */
     function addCustomExerciseFromInput() {
       const input = document.getElementById('custom-exercise-input');
       const name = input.value.trim();
       if (!name) return;
 
-      const exists = draftExercises.some(e => e.name === name);
-      if (exists) {
-        showToast('此動作已在本次列表中');
-        return;
+      if (!draftExercises.some(ex => ex.name === name)) {
+        addExerciseToDraft(name);
       }
-
-      addExerciseToDraft(name);
       input.value = '';
       renderDrawerPresets();
       renderDrawerExercises();
     }
 
     /**
-     * 將動作加入草稿列表（自動參考歷史紀錄帶入預設組數與重量）
+     * 將動作加入草稿列表（極簡模式：只需記錄重量與次數，預設以 3 組為基準）
      */
     function addExerciseToDraft(name) {
       const lastRecord = findLastExerciseRecord(name, selectedDateStr);
-      let initialSets;
-      if (lastRecord && lastRecord.sets && lastRecord.sets.length > 0) {
-        initialSets = lastRecord.sets.map(s => ({
-          weight: s.weight,
-          reps: s.reps
-        }));
-      } else {
-        initialSets = [
-          { weight: '', reps: 10 },
-          { weight: '', reps: 10 },
-          { weight: '', reps: 10 }
-        ];
+      let initialWeight = '';
+      let initialReps = 10;
+
+      if (lastRecord) {
+        if (typeof lastRecord.weight === 'number' && lastRecord.weight > 0) {
+          initialWeight = lastRecord.weight;
+          initialReps = lastRecord.reps || 10;
+        } else if (lastRecord.sets && lastRecord.sets.length > 0) {
+          // 兼容舊版多組格式，取最大重量與對應次數
+          const bestSet = lastRecord.sets.reduce((best, cur) =>
+            (Number(cur.weight) || 0) >= (Number(best.weight) || 0) ? cur : best
+          , lastRecord.sets[0]);
+          initialWeight = Number(bestSet.weight) || '';
+          initialReps = Number(bestSet.reps) || 10;
+        }
       }
 
       draftExercises.push({
         name: name,
-        sets: initialSets
+        weight: initialWeight,
+        reps: initialReps
       });
     }
 
@@ -1089,68 +1026,40 @@
     }
 
     /**
-     * 為某動作新增一組（自動複製該動作上一組的重量與次數）
-     */
-    function addSetToDraftExercise(exIdx) {
-      const ex = draftExercises[exIdx];
-      if (!ex) return;
-      const lastSet = ex.sets[ex.sets.length - 1] || { weight: '', reps: 10 };
-      ex.sets.push({ weight: lastSet.weight, reps: lastSet.reps });
-      renderDrawerExercises();
-    }
-
-    /**
-     * 刪除某動作中的指定一組
-     */
-    function removeSetFromDraftExercise(exIdx, setIdx) {
-      const ex = draftExercises[exIdx];
-      if (!ex || ex.sets.length <= 1) return;
-      ex.sets.splice(setIdx, 1);
-      renderDrawerExercises();
-    }
-
-    /**
      * 快速加減重量（-2.5 / +2.5 按鈕）
      */
-    function adjustDraftSetWeight(exIdx, setIdx, delta) {
+    function adjustDraftWeight(exIdx, delta) {
       const ex = draftExercises[exIdx];
-      if (!ex || !ex.sets[setIdx]) return;
-      const current = parseFloat(ex.sets[setIdx].weight) || 0;
+      if (!ex) return;
+      const current = parseFloat(ex.weight) || 0;
       const next = Math.max(0, Number((current + delta).toFixed(1)));
-      ex.sets[setIdx].weight = next;
+      ex.weight = next;
       renderDrawerExercises();
     }
 
     /**
      * 快速加減次數（-1 / +1 按鈕）
      */
-    function adjustDraftSetReps(exIdx, setIdx, delta) {
+    function adjustDraftReps(exIdx, delta) {
       const ex = draftExercises[exIdx];
-      if (!ex || !ex.sets[setIdx]) return;
-      const current = parseInt(ex.sets[setIdx].reps, 10) || 0;
+      if (!ex) return;
+      const current = parseInt(ex.reps, 10) || 0;
       const next = Math.max(1, current + delta);
-      ex.sets[setIdx].reps = next;
+      ex.reps = next;
       renderDrawerExercises();
     }
 
     /**
-     * 複製該動作的最後一組（一鍵快速記錄多組相同重量次數）
+     * 更新草稿中某動作的重量或次數
      */
-    function duplicateLastSet(exIdx) {
-      addSetToDraftExercise(exIdx);
-    }
-
-    /**
-     * 更新草稿中某組的重量或次數
-     */
-    function updateDraftSetField(exIdx, setIdx, field, rawVal) {
+    function updateDraftField(exIdx, field, rawVal) {
       const ex = draftExercises[exIdx];
-      if (!ex || !ex.sets[setIdx]) return;
-      ex.sets[setIdx][field] = rawVal === '' ? '' : Number(rawVal);
+      if (!ex) return;
+      ex[field] = rawVal === '' ? '' : Number(rawVal);
     }
 
     /**
-     * 渲染抽屜內已選擇的動作卡片與每組輸入列
+     * 渲染抽屜內已選擇的動作卡片（極簡單列：僅需填寫重量與次數，預設 3 組）
      */
     function renderDrawerExercises() {
       const container = document.getElementById('drawer-exercises-list');
@@ -1160,113 +1069,104 @@
         container.innerHTML = `
           <div class="rounded-2xl border border-dashed border-greige-300 bg-greige-100/60 p-6 text-center">
             <p class="text-xs sm:text-sm text-greige-600 font-medium">尚未加入訓練動作</p>
-            <p class="text-[11px] text-greige-400 mt-1">請從上方點選常用動作，或直接點擊「儲存紀錄」完成部位打卡</p>
+            <p class="text-[11px] text-greige-400 mt-1">點選上方常用動作即可快速記錄重量與次數（預設 3 組）</p>
           </div>
         `;
         return;
       }
 
       draftExercises.forEach((ex, exIdx) => {
+        // 兼容舊資料結構，確保取得 weight 與 reps
+        let curWeight = ex.weight !== undefined ? ex.weight : '';
+        let curReps = ex.reps !== undefined ? ex.reps : 10;
+        if (ex.weight === undefined && ex.sets && ex.sets.length > 0) {
+          const bestSet = ex.sets.reduce((best, cur) =>
+            (Number(cur.weight) || 0) >= (Number(best.weight) || 0) ? cur : best
+          , ex.sets[0]);
+          curWeight = bestSet.weight !== '' ? bestSet.weight : '';
+          curReps = bestSet.reps !== '' ? bestSet.reps : 10;
+          ex.weight = curWeight;
+          ex.reps = curReps;
+        }
+
         const card = document.createElement('div');
-        card.className = 'rounded-2xl bg-greige-100/80 border border-greige-200 p-4 transition-all';
+        card.className = 'rounded-2xl bg-greige-100/85 border border-greige-200 p-3.5 sm:p-4 transition-all';
 
         const lastRecord = findLastExerciseRecord(ex.name, selectedDateStr);
         let lastHintHtml = '';
         if (lastRecord) {
-          const summaryStr = lastRecord.sets.map(s => `${s.weight}kg×${s.reps}`).join(' / ');
-          lastHintHtml = `
-            <div class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-greige-600 bg-greige-200/70 px-2.5 py-1 rounded-lg">
-              <span>上次 (${lastRecord.dateStr.slice(5).replace('-', '/')}):</span>
-              <span class="font-semibold text-greige-800">${summaryStr}</span>
-            </div>
-          `;
+          const lastW = lastRecord.weight !== undefined
+            ? lastRecord.weight
+            : (lastRecord.sets?.length ? Math.max(...lastRecord.sets.map(s => Number(s.weight) || 0)) : 0);
+          const lastR = lastRecord.reps !== undefined
+            ? lastRecord.reps
+            : (lastRecord.sets?.length ? lastRecord.sets[0].reps : 10);
+
+          if (lastW > 0 || lastR > 0) {
+            lastHintHtml = `
+              <span class="text-[11px] text-greige-500 tabular-nums">
+                上次 ${lastRecord.dateStr.slice(5).replace('-', '/')}：<strong class="text-greige-700 font-semibold">${lastW}kg × ${lastR}下</strong>
+              </span>
+            `;
+          }
         }
 
-        let setsRowsHtml = '';
-        ex.sets.forEach((setItem, setIdx) => {
-          setsRowsHtml += `
-            <div class="flex items-center justify-between gap-1.5 mt-2.5">
-              <span class="text-[11px] font-semibold text-greige-500 w-9 shrink-0 tabular-nums">第${setIdx + 1}組</span>
-              
-              <!-- 重量快速加減 + 輸入框 -->
-              <div class="flex items-center bg-greige-50 border border-greige-200 rounded-xl overflow-hidden flex-1 max-w-[156px]">
-                <button type="button" onclick="adjustDraftSetWeight(${exIdx}, ${setIdx}, -2.5)"
-                  class="btn-press px-2 py-1.5 text-[11px] font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
-                  title="減少 2.5kg">
-                  -2.5
-                </button>
-                <div class="relative flex-1 min-w-0">
-                  <input type="number" step="0.5" min="0" placeholder="0"
-                    value="${setItem.weight !== '' ? setItem.weight : ''}"
-                    oninput="updateDraftSetField(${exIdx}, ${setIdx}, 'weight', this.value)"
-                    class="w-full bg-transparent py-1.5 pr-4 text-xs sm:text-sm font-bold text-greige-800 text-center tabular-nums focus:outline-none" />
-                  <span class="text-[10px] text-greige-400 absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">kg</span>
-                </div>
-                <button type="button" onclick="adjustDraftSetWeight(${exIdx}, ${setIdx}, 2.5)"
-                  class="btn-press px-2 py-1.5 text-[11px] font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
-                  title="增加 2.5kg">
-                  +2.5
-                </button>
-              </div>
-
-              <!-- 次數快速加減 + 輸入框 -->
-              <div class="flex items-center bg-greige-50 border border-greige-200 rounded-xl overflow-hidden w-[108px] shrink-0">
-                <button type="button" onclick="adjustDraftSetReps(${exIdx}, ${setIdx}, -1)"
-                  class="btn-press px-1.5 py-1.5 text-[11px] font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
-                  title="減少 1 下">
-                  -1
-                </button>
-                <div class="relative flex-1 min-w-0">
-                  <input type="number" step="1" min="0" placeholder="10"
-                    value="${setItem.reps !== '' ? setItem.reps : ''}"
-                    oninput="updateDraftSetField(${exIdx}, ${setIdx}, 'reps', this.value)"
-                    class="w-full bg-transparent py-1.5 pr-3.5 text-xs sm:text-sm font-bold text-greige-800 text-center tabular-nums focus:outline-none" />
-                  <span class="text-[10px] text-greige-400 absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">下</span>
-                </div>
-                <button type="button" onclick="adjustDraftSetReps(${exIdx}, ${setIdx}, 1)"
-                  class="btn-press px-1.5 py-1.5 text-[11px] font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
-                  title="增加 1 下">
-                  +1
-                </button>
-              </div>
-
-              <!-- 刪除單組按鈕 -->
-              <button type="button" onclick="removeSetFromDraftExercise(${exIdx}, ${setIdx})"
-                ${ex.sets.length <= 1 ? 'disabled' : ''}
-                aria-label="刪除此組"
-                class="w-7 h-7 rounded-lg text-greige-400 hover:text-greige-700 hover:bg-greige-200/70 disabled:opacity-25 flex items-center justify-center transition-colors shrink-0">
-                <svg width="14" height="14" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-          `;
-        });
-
         card.innerHTML = `
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
+          <div class="flex items-center justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2 min-w-0 flex-wrap">
               <span class="w-1.5 h-4 rounded-full bg-greige-600 shrink-0"></span>
-              <h4 class="text-sm font-semibold text-greige-800">${escapeHtml(ex.name)}</h4>
+              <h4 class="text-sm font-semibold text-greige-800 truncate">${escapeHtml(ex.name)}</h4>
+              ${lastHintHtml}
             </div>
             <button type="button" onclick="removeDraftExercise(${exIdx})"
-              class="text-[11px] text-greige-400 hover:text-red-700 transition-colors px-1.5 py-0.5">
+              class="text-[11px] text-greige-400 hover:text-red-700 transition-colors px-1.5 py-0.5 shrink-0">
               移除
             </button>
           </div>
-          ${lastHintHtml}
-          <div class="mt-2">
-            ${setsRowsHtml}
-          </div>
-          <div class="mt-3 grid grid-cols-2 gap-2">
-            <button type="button" onclick="duplicateLastSet(${exIdx})"
-              class="btn-press py-1.5 rounded-xl bg-greige-200/75 hover:bg-greige-200 text-xs font-medium text-greige-700 transition-colors">
-              複製上一組
-            </button>
-            <button type="button" onclick="addSetToDraftExercise(${exIdx})"
-              class="btn-press py-1.5 rounded-xl border border-dashed border-greige-300 hover:border-greige-500 text-xs font-medium text-greige-600 hover:text-greige-800 hover:bg-greige-100 transition-colors">
-              + 新增一組
-            </button>
+
+          <!-- 極簡一行式輸入：重量 (kg) + 次數 (下) -->
+          <div class="flex items-center gap-2">
+            <!-- 重量快速加減 + 輸入框 -->
+            <div class="flex items-center bg-greige-50 border border-greige-200 rounded-xl overflow-hidden flex-1">
+              <button type="button" onclick="adjustDraftWeight(${exIdx}, -2.5)"
+                class="btn-press px-2.5 py-2 text-xs font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
+                title="減少 2.5kg">
+                -2.5
+              </button>
+              <div class="relative flex-1 min-w-0">
+                <input type="number" step="0.5" min="0" placeholder="0"
+                  value="${curWeight !== '' ? curWeight : ''}"
+                  oninput="updateDraftField(${exIdx}, 'weight', this.value)"
+                  class="w-full bg-transparent py-2 pr-5 text-sm font-bold text-greige-800 text-center tabular-nums focus:outline-none" />
+                <span class="text-[11px] text-greige-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none">kg</span>
+              </div>
+              <button type="button" onclick="adjustDraftWeight(${exIdx}, 2.5)"
+                class="btn-press px-2.5 py-2 text-xs font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
+                title="增加 2.5kg">
+                +2.5
+              </button>
+            </div>
+
+            <!-- 次數快速加減 + 輸入框 -->
+            <div class="flex items-center bg-greige-50 border border-greige-200 rounded-xl overflow-hidden w-[124px] shrink-0">
+              <button type="button" onclick="adjustDraftReps(${exIdx}, -1)"
+                class="btn-press px-2 py-2 text-xs font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
+                title="減少 1 下">
+                -1
+              </button>
+              <div class="relative flex-1 min-w-0">
+                <input type="number" step="1" min="0" placeholder="10"
+                  value="${curReps !== '' ? curReps : ''}"
+                  oninput="updateDraftField(${exIdx}, 'reps', this.value)"
+                  class="w-full bg-transparent py-2 pr-4 text-sm font-bold text-greige-800 text-center tabular-nums focus:outline-none" />
+                <span class="text-[11px] text-greige-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none">下</span>
+              </div>
+              <button type="button" onclick="adjustDraftReps(${exIdx}, 1)"
+                class="btn-press px-2 py-2 text-xs font-semibold text-greige-500 hover:text-greige-800 hover:bg-greige-200/60 transition-colors shrink-0"
+                title="增加 1 下">
+                +1
+              </button>
+            </div>
           </div>
         `;
 
@@ -1275,7 +1175,7 @@
     }
 
     /**
-     * 儲存抽屜中的運動明細與部位打卡（附上鼓勵語提示）
+     * 儲存抽屜中的運動明細與部位打卡（精簡格式：僅存重量與次數，預設 3 組）
      */
     function saveWorkoutDrawer() {
       if (!activeDrawerType) return;
@@ -1292,10 +1192,8 @@
         .filter(ex => ex.name && ex.name.trim() !== '')
         .map(ex => ({
           name: ex.name.trim(),
-          sets: ex.sets.map(s => ({
-            weight: s.weight === '' ? 0 : Number(s.weight),
-            reps: s.reps === '' ? 0 : Number(s.reps)
-          }))
+          weight: ex.weight === '' || ex.weight === undefined ? 0 : Number(ex.weight),
+          reps: ex.reps === '' || ex.reps === undefined ? 0 : Number(ex.reps)
         }));
 
       existing.details[typeId] = cleanedExercises;
@@ -1415,8 +1313,31 @@
     }
 
     /* ============================================================
-       歷史搜尋與重量進步分析輔助邏輯
+       歷史搜尋與重量進步分析輔助邏輯（兼容精簡單組與舊版多組格式）
        ============================================================ */
+
+    function extractExerciseMetrics(ex) {
+      if (ex.weight !== undefined) {
+        const w = Number(ex.weight) || 0;
+        const r = Number(ex.reps) || 0;
+        return {
+          weight: w,
+          reps: r,
+          totalVolume: w * r * 3 // 固定以 3 組起跳估算總訓練量
+        };
+      }
+      const validSets = (ex.sets || []).filter(s => Number(s.weight) > 0 || Number(s.reps) > 0);
+      if (validSets.length === 0) return { weight: 0, reps: 0, totalVolume: 0 };
+      const bestSet = validSets.reduce((best, cur) =>
+        (Number(cur.weight) || 0) >= (Number(best.weight) || 0) ? cur : best
+      , validSets[0]);
+      const totalVolume = validSets.reduce((acc, s) => acc + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0);
+      return {
+        weight: Number(bestSet.weight) || 0,
+        reps: Number(bestSet.reps) || 0,
+        totalVolume
+      };
+    }
 
     function findLastExerciseRecord(exerciseName, beforeDateStr) {
       const sortedDates = Object.keys(workoutData).sort((a, b) => b.localeCompare(a));
@@ -1426,9 +1347,12 @@
         if (!entry || !entry.details) continue;
         for (const typeId of Object.keys(entry.details)) {
           const list = entry.details[typeId] || [];
-          const found = list.find(e => e.name === exerciseName && e.sets && e.sets.length > 0);
+          const found = list.find(e => e.name === exerciseName);
           if (found) {
-            return { dateStr, sets: found.sets };
+            const metrics = extractExerciseMetrics(found);
+            if (metrics.weight > 0 || metrics.reps > 0) {
+              return { dateStr, weight: metrics.weight, reps: metrics.reps, sets: found.sets };
+            }
           }
         }
       }
@@ -1450,15 +1374,14 @@
             if (!exerciseMap.has(ex.name)) {
               exerciseMap.set(ex.name, { name: ex.name, typeId, history: [] });
             }
-            const validSets = (ex.sets || []).filter(s => Number(s.weight) > 0 || Number(s.reps) > 0);
-            if (validSets.length > 0) {
-              const maxWeight = Math.max(...validSets.map(s => Number(s.weight) || 0));
-              const totalVolume = validSets.reduce((acc, s) => acc + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0);
+            const metrics = extractExerciseMetrics(ex);
+            if (metrics.weight > 0 || metrics.reps > 0) {
               exerciseMap.get(ex.name).history.push({
                 dateStr,
-                sets: validSets,
-                maxWeight,
-                totalVolume
+                weight: metrics.weight,
+                reps: metrics.reps,
+                maxWeight: metrics.weight,
+                totalVolume: metrics.totalVolume
               });
             }
           });
@@ -1651,7 +1574,7 @@
         summaryWrap.classList.remove('hidden');
         allExercisesForDay.forEach(ex => {
           const meta = WORKOUT_TYPES[ex.typeId];
-          const maxW = ex.sets && ex.sets.length > 0 ? Math.max(...ex.sets.map(s => Number(s.weight) || 0)) : 0;
+          const metrics = extractExerciseMetrics(ex);
           const chip = document.createElement('button');
           chip.type = 'button';
           chip.onclick = () => openWorkoutDrawer(ex.typeId);
@@ -1659,7 +1582,7 @@
           chip.innerHTML = `
             <span class="w-1.5 h-1.5 rounded-full" style="background-color:${meta.dotColor}"></span>
             <span class="font-medium">${escapeHtml(ex.name)}</span>
-            <span class="text-[11px] text-greige-500 tabular-nums">${maxW > 0 ? maxW + 'kg' : ''} · ${ex.sets.length}組</span>
+            <span class="text-[11px] text-greige-500 tabular-nums">${metrics.weight > 0 ? metrics.weight + 'kg × ' : ''}${metrics.reps}下</span>
           `;
           chipsContainer.appendChild(chip);
         });
@@ -1758,9 +1681,7 @@
         const details = workoutData[dStr]?.details || {};
         Object.values(details).forEach(exList => {
           (exList || []).forEach(ex => {
-            (ex.sets || []).forEach(s => {
-              totalVolume += (Number(s.weight) || 0) * (Number(s.reps) || 0);
-            });
+            totalVolume += extractExerciseMetrics(ex).totalVolume;
           });
         });
       });
@@ -1861,12 +1782,11 @@
             `;
           } else {
             exList.forEach(ex => {
-              const setsStr = (ex.sets || []).map(s => {
-                const w = Number(s.weight) || 0;
-                const r = Number(s.reps) || 0;
-                sessionVolume += w * r;
-                return `${w}kg×${r}`;
-              }).join(' · ');
+              const metrics = extractExerciseMetrics(ex);
+              sessionVolume += metrics.totalVolume;
+              const detailText = (metrics.weight > 0 || metrics.reps > 0)
+                ? `${metrics.weight}kg × ${metrics.reps}下`
+                : '未填重量';
 
               exercisesHtml += `
                 <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 py-1.5 border-b border-greige-200/50 last:border-none">
@@ -1874,7 +1794,7 @@
                     <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color:${meta.dotColor}"></span>
                     <span class="text-xs sm:text-sm font-semibold text-greige-800">${escapeHtml(ex.name)}</span>
                   </div>
-                  <span class="text-xs text-greige-600 tabular-nums pl-3.5 sm:pl-0">${setsStr || '未填重量'}</span>
+                  <span class="text-xs text-greige-600 tabular-nums pl-3.5 sm:pl-0">${detailText}</span>
                 </div>
               `;
             });
@@ -2020,7 +1940,7 @@
       const rowsHtml = reverseHistory.map((h, idx) => {
         const dObj = parseDateKey(h.dateStr);
         const dateLabel = `${dObj.getFullYear()}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${String(dObj.getDate()).padStart(2, '0')}`;
-        const setsDetail = h.sets.map(s => `${s.weight}kg×${s.reps}`).join(' / ');
+        const detailLabel = `${h.weight}kg × ${h.reps}下`;
         const isPr = h.maxWeight === prWeight && prWeight > 0;
 
         return `
@@ -2031,7 +1951,7 @@
                 ${isPr ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-greige-800 text-greige-50">PR</span>` : ''}
                 ${idx === 0 ? `<span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-greige-200 text-greige-700">最新</span>` : ''}
               </div>
-              <p class="text-[11px] text-greige-500 mt-0.5 tabular-nums">${setsDetail}</p>
+              <p class="text-[11px] text-greige-500 mt-0.5 tabular-nums">${detailLabel}</p>
             </div>
             <div class="text-right shrink-0">
               <span class="text-sm font-bold text-greige-800 tabular-nums">${h.maxWeight} kg</span>
@@ -2138,7 +2058,7 @@
     }
 
     /**
-     * 載入內建示範訓練紀錄（讓使用者初次開啟即可體驗完整記錄與 PR 比較）
+     * 載入內建示範訓練紀錄（精簡格式：僅重量與次數）
      */
     function loadSampleData(notify = true) {
       const addDays = (base, offset) => {
@@ -2153,8 +2073,8 @@
         types: ['push'],
         details: {
           push: [
-            { name: '槓鈴臥推', sets: [{ weight: 55, reps: 10 }, { weight: 60, reps: 8 }, { weight: 60, reps: 8 }] },
-            { name: '啞鈴肩推', sets: [{ weight: 16, reps: 10 }, { weight: 16, reps: 10 }] }
+            { name: '槓鈴臥推', weight: 60, reps: 8 },
+            { name: '啞鈴肩推', weight: 16, reps: 10 }
           ]
         },
         note: '暖身充分，胸肌發力感受度很好'
@@ -2164,8 +2084,8 @@
         types: ['pull'],
         details: {
           pull: [
-            { name: '滑輪下拉', sets: [{ weight: 45, reps: 12 }, { weight: 50, reps: 10 }, { weight: 50, reps: 9 }] },
-            { name: '槓鈴划船', sets: [{ weight: 40, reps: 10 }, { weight: 45, reps: 10 }] }
+            { name: '滑輪下拉', weight: 50, reps: 10 },
+            { name: '槓鈴划船', weight: 45, reps: 10 }
           ]
         },
         note: ''
@@ -2175,8 +2095,8 @@
         types: ['push'],
         details: {
           push: [
-            { name: '槓鈴臥推', sets: [{ weight: 60, reps: 10 }, { weight: 62.5, reps: 8 }, { weight: 62.5, reps: 7 }] },
-            { name: '啞鈴肩推', sets: [{ weight: 16, reps: 12 }, { weight: 18, reps: 9 }] }
+            { name: '槓鈴臥推', weight: 62.5, reps: 8 },
+            { name: '啞鈴肩推', weight: 18, reps: 9 }
           ]
         },
         note: '臥推順利突破 62.5kg'
@@ -2186,10 +2106,10 @@
         types: ['legs', 'core'],
         details: {
           legs: [
-            { name: '槓鈴深蹲', sets: [{ weight: 70, reps: 10 }, { weight: 80, reps: 8 }, { weight: 80, reps: 8 }] }
+            { name: '槓鈴深蹲', weight: 80, reps: 8 }
           ],
           core: [
-            { name: '懸垂舉腿', sets: [{ weight: 0, reps: 15 }, { weight: 0, reps: 15 }] }
+            { name: '懸垂舉腿', weight: 0, reps: 15 }
           ]
         },
         note: '深蹲核心穩定度提升'
@@ -2199,8 +2119,8 @@
         types: ['pull'],
         details: {
           pull: [
-            { name: '滑輪下拉', sets: [{ weight: 50, reps: 12 }, { weight: 55, reps: 10 }, { weight: 55, reps: 9 }] },
-            { name: '啞鈴二頭彎舉', sets: [{ weight: 12, reps: 12 }, { weight: 12, reps: 10 }] }
+            { name: '滑輪下拉', weight: 55, reps: 10 },
+            { name: '啞鈴二頭彎舉', weight: 12, reps: 10 }
           ]
         },
         note: ''
@@ -2210,8 +2130,8 @@
         types: ['push'],
         details: {
           push: [
-            { name: '槓鈴臥推', sets: [{ weight: 60, reps: 10 }, { weight: 65, reps: 8 }, { weight: 65, reps: 6 }] },
-            { name: '啞鈴肩推', sets: [{ weight: 18, reps: 10 }, { weight: 18, reps: 10 }] }
+            { name: '槓鈴臥推', weight: 65, reps: 8 },
+            { name: '啞鈴肩推', weight: 18, reps: 10 }
           ]
         },
         note: '臥推新紀錄 65kg！'
