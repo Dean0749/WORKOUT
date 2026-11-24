@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>D-workout 2.0 — 個人運動紀錄</title>
+  <!-- 載入 Google Fonts: Inter 與 Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+          },
+          colors: {
+            greige: {
+              50: '#FFFFFF',
+              100: '#F8F7F4',
+              200: '#EAE5DE',
+              300: '#DCD3C7',
+              400: '#BFB3A4',
+              500: '#9E9080',
+              600: '#8E7F71',
+              700: '#6D6155',
+              800: '#4A4239',
+              900: '#352F28',
+            },
+            push: {
+              bg: '#F3E7E1',
+              border: '#DFC5B8',
+              text: '#8D5B46',
+              dot: '#C28268',
+            },
+            pull: {
+              bg: '#E5EBE7',
+              border: '#C5D3CA',
+              text: '#4F6D5B',
+              dot: '#739781',
+            },
+            legs: {
+              bg: '#EBE4DC',
+              border: '#D2C4B4',
+              text: '#6E5A47',
+              dot: '#977B61',
+            },
+            core: {
+              bg: '#F2ECE1',
+              border: '#DDD0BA',
+              text: '#856F4A',
+              dot: '#B59B6D',
+            }
+          },
+          boxShadow: {
+            'soft': '0 8px 30px -6px rgba(74, 66, 57, 0.06)',
+            'card': '0 2px 12px -2px rgba(74, 66, 57, 0.04)',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* 消除 number input 預設上下箭頭，讓數字置中更整齊 */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    .btn-press {
+      transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-press:active {
+      transform: scale(0.97);
+    }
+    .fade-in {
+      animation: fadeIn 0.25s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-[#FBFAF8] text-greige-800 antialiased min-h-screen selection:bg-greige-300 selection:text-greige-900">
+
+  <!-- D-workout 2.0 主容器 -->
+  <div class="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-9 pb-24">
+
+    <!-- 頂部品牌標題與雙分頁導航 -->
+    <header class="flex items-center justify-between gap-3 mb-6">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-2xl bg-greige-800 text-greige-50 flex items-center justify-center font-bold text-sm tracking-tight shadow-card shrink-0">
+          D
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-greige-900 truncate">D-workout</h1>
+          <p class="text-[11px] sm:text-xs text-greige-500 truncate">每週四練 · PUSH / PULL / LEGS / CORE</p>
+        </div>
+      </div>
+
+      <!-- 雙分頁膠囊切換 -->
+      <nav class="bg-greige-200/80 p-1 rounded-2xl flex items-center shrink-0 border border-greige-300/50">
+        <button type="button" id="tab-btn-home" onclick="switchTab('home')"
+          class="px-3.5 py-1.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all bg-greige-50 text-greige-900 shadow-2xs">
+          今日紀錄
+        </button>
+        <button type="button" id="tab-btn-history" onclick="switchTab('history')"
+          class="px-3.5 py-1.5 rounded-xl text-xs sm:text-[13px] font-medium transition-all text-greige-600 hover:text-greige-900">
+          紀錄與進步
+        </button>
+      </nav>
+    </header>
+
+    <!-- ==========================================
+         分頁 1：首頁（今日紀錄）
+    =========================================== -->
+    <main id="view-home" class="space-y-4 fade-in">
+
+      <!-- 1. 本週日程與每週 4 天進度卡片 -->
+      <section class="bg-white rounded-3xl p-4 sm:p-5 border border-[#EEEAE4] shadow-[0_4px_22px_rgba(74,66,57,.035)]">
+        <div class="flex items-center justify-between gap-2 mb-3.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <h2 class="text-sm sm:text-base font-bold text-greige-800 shrink-0">本週日程</h2>
+            <span id="selected-date-badge" class="text-[11px] font-medium text-greige-500 bg-greige-100 px-2 py-0.5 rounded-full truncate">
+              今天
+            </span>
+            <button type="button" id="btn-back-today" onclick="selectToday()"
+              class="hidden btn-press text-[11px] font-semibold text-greige-700 hover:text-greige-900 bg-greige-200/80 px-2 py-0.5 rounded-full shrink-0">
+              回到今天
+            </button>
+          </div>
+
+          <!-- 固定高度與防縮放徽章，確保切換不同日期時圖示與文字絕不跳動 -->
+          <div class="h-8 px-3 rounded-full bg-greige-100 border border-greige-200/80 flex items-center gap-1.5 shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-greige-600 shrink-0">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span class="text-xs font-semibold text-greige-700 tabular-nums whitespace-nowrap">
+              本週目標 <span id="weekly-count" class="text-greige-900 font-bold">0</span> / 4 天
+            </span>
+          </div>
+        </div>
+
+        <!-- 進度條 -->
+        <div class="w-full h-1.5 bg-greige-200/70 rounded-full overflow-hidden mb-4">
+          <div id="weekly-progress-bar" class="h-full bg-greige-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- 週一至週日 7 天格 -->
+        <div id="week-days-grid" class="grid grid-cols-7 gap-1.5 sm:gap-2">
+          <!-- 由 JS 動態生成 -->
+        </div>
+      </section>
+
+      <!-- 2. 訓練打氣小語卡片 -->
+      <section class="bg-greige-200/45 rounded-2xl px-4 py-3 border border-greige-200/80 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-6 h-6 rounded-full bg-greige-50 border border-greige-200 flex items-center justify-center text-greige-600 shrink-0">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </span>
+          <p id="quote-text" class="text-xs sm:text-[13px] text-greige-700 font-medium leading-relaxed truncate">
+            每一次推起與拉起，都在雕刻更強壯的自己。
+          </p>
+        </div>
+        <button type="button" onclick="nextQuote()" title="換一句打氣小語"
+          class="btn-press w-7 h-7 rounded-xl bg-greige-50 hover:bg-greige-200/70 border border-greige-200 text-greige-600 flex items-center justify-center shrink-0">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 16h5v5"/>
+          </svg>
+        </button>
+      </section>
+
+      <!-- 3. 運動紀錄主操作卡片（推 / 拉 / 腿 / 核心） -->
+      <section class="bg-white rounded-3xl p-4 sm:p-5 border border-[#EEEAE4] shadow-[0_4px_22px_rgba(74,66,57,.035)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div>
+            <h2 id="workout-panel-title" class="text-sm sm:text-base font-bold text-greige-800">今天練哪裡？</h2>
+            <p class="text-xs text-greige-500 mt-0.5">選擇訓練部位，逐組記錄重量與次數</p>
+          </div>
+          <span id="day-status-pill" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-greige-100 text-greige-500">
+            尚未紀錄
+          </span>
+        </div>
+
+        <!-- 四大訓練部位大按鈕 -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- 推 Push -->
+          <button type="button" id="btn-type-push" onclick="openWorkoutDrawer('push')"
+            class="btn-press group relative text-left p-4 rounded-2xl bg-greige-100/80 hover:bg-push-bg/60 border border-greige-200/90 transition-all">
+            <div class="flex items-center justify-between mb-2">
+              <span class="w-8 h-8 rounded-xl bg-push-bg text-push-text flex items-center justify-center font-bold text-sm border border-push-border/60">
+                推
+              </span>
+              <span id="check-push" class="hidden text-xs font-bold text-push-text bg-push-bg px-2 py-0.5 rounded-full border border-push-border">
+                已練 ✓
+              </span>
+            </div>
+            <div class="font-bold text-greige-800 text-sm sm:text-base">Push 推力</div>
+            <div class="text-[11px] text-greige-500 mt-0.5">胸肌 · 肩膀 · 三頭肌</div>
+          </button>
+
+          <!-- 拉 Pull -->
+          <button type="button" id="btn-type-pull" onclick="openWorkoutDrawer('pull')"
+            class="btn-press group relative text-left p-4 rounded-2xl bg-greige-100/80 hover:bg-pull-bg/60 border border-greige-200/90 transition-all">
+            <div class="flex items-center justify-between mb-2">
+              <span class="w-8 h-8 rounded-xl bg-pull-bg text-pull-text flex items-center justify-center font-bold text-sm border border-pull-border/60">
+                拉
+              </span>
+              <span id="check-pull" class="hidden text-xs font-bold text-pull-text bg-pull-bg px-2 py-0.5 rounded-full border border-pull-border">
+                已練 ✓
+              </span>
+            </div>
+            <div class="font-bold text-greige-800 text-sm sm:text-base">Pull 拉力</div>
+            <div class="text-[11px] text-greige-500 mt-0.5">背肌 · 後三角 · 二頭肌</div>
+          </button>
+
+          <!-- 腿 Legs -->
+          <button type="button" id="btn-type-legs" onclick="openWorkoutDrawer('legs')"
+            class="btn-press group relative text-left p-4 rounded-2xl bg-greige-100/80 hover:bg-legs-bg/60 border border-greige-200/90 transition-all">
+            <div class="flex items-center justify-between mb-2">
+              <span class="w-8 h-8 rounded-xl bg-legs-bg text-legs-text flex items-center justify-center font-bold text-sm border border-legs-border/60">
+                腿
+              </span>
+              <span id="check-legs" class="hidden text-xs font-bold text-legs-text bg-legs-bg px-2 py-0.5 rounded-full border border-legs-border">
+                已練 ✓
+              </span>
+            </div>
+            <div class="font-bold text-greige-800 text-sm sm:text-base">Legs 下肢</div>
+            <div class="text-[11px] text-greige-500 mt-0.5">股四頭 · 腿後側 · 臀肌</div>
+          </button>
+
+          <!-- 核心 Core -->
+          <button type="button" id="btn-type-core" onclick="openWorkoutDrawer('core')"
+            class="btn-press group relative text-left p-4 rounded-2xl bg-greige-100/80 hover:bg-core-bg/60 border border-greige-200/90 transition-all">
+            <div class="flex items-center justify-between mb-2">
+              <span class="w-8 h-8 rounded-xl bg-core-bg text-core-text flex items-center justify-center font-bold text-sm border border-core-border/60">
+                核
+              </span>
+              <span id="check-core" class="hidden text-xs font-bold text-core-text bg-core-bg px-2 py-0.5 rounded-full border border-core-border">
+                已練 ✓
+              </span>
+            </div>
+            <div class="font-bold text-greige-800 text-sm sm:text-base">Core 核心</div>
+            <div class="text-[11px] text-greige-500 mt-0.5">腹直肌 · 側腹 · 穩定度</div>
+          </button>
+        </div>
+
+        <!-- 當日已紀錄的精簡訓練內容摘要 -->
+        <div id="today-summary-box" class="hidden mt-4 pt-3.5 border-t border-greige-200/80 space-y-2">
+          <!-- 由 JS 動態生成當日各部位動作摘要 -->
+        </div>
+      </section>
+
+      <!-- 4. 可展開／收合的「本月運動狀況」月曆卡片 -->
+      <section class="bg-greige-50 rounded-3xl border border-greige-200/90 shadow-soft overflow-hidden">
+        <button type="button" onclick="toggleMonthCalendar()"
+          class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-greige-100/60 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-xl bg-greige-100 border border-greige-200 flex items-center justify-center text-greige-700">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </span>
+            <div>
+              <h3 class="text-sm font-bold text-greige-800">本月運動狀況</h3>
+              <p id="month-summary-subtitle" class="text-[11px] text-greige-500">本月已累積運動 0 天</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span id="month-toggle-label" class="text-xs font-medium text-greige-500">展開月曆</span>
+            <svg id="month-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-greige-500 transition-transform duration-200">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </button>
+
+        <!-- 可折疊月曆內容區 -->
+        <div id="month-calendar-panel" class="hidden px-4 sm:px-5 pb-5 pt-1 border-t border-greige-200/70">
+          <!-- 月份切換控制 -->
+          <div class="flex items-center justify-between my-3">
+            <button type="button" onclick="changeCalendarMonth(-1)"
+              class="btn-press w-8 h-8 rounded-xl bg-greige-100 hover:bg-greige-200 flex items-center justify-center text-greige-700">
+              ‹
+            </button>
+            <span id="calendar-month-title" class="text-sm font-bold text-greige-800 tabular-nums">2026 年 11 月</span>
+            <button type="button" onclick="changeCalendarMonth(1)"
+              class="btn-press w-8 h-8 rounded-xl bg-greige-100 hover:bg-greige-200 flex items-center justify-center text-greige-700">
+              ›
+            </button>
+          </div>
+
+          <!-- 星期標頭 -->
+          <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-greige-400 mb-1.5">
+            <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+          </div>
+
+          <!-- 月曆日期格 -->
+          <div id="month-calendar-grid" class="grid grid-cols-7 gap-1.5">
+            <!-- 由 JS 動態生成 -->
+          </div>
+
+          <!-- 本月各部位統計標籤 -->
+          <div id="month-type-stats" class="grid grid-cols-4 gap-2 mt-4 pt-3.5 border-t border-greige-200/70">
+            <!-- 由 JS 動態生成 -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==========================================
+         分頁 2：紀錄與進步（獨立頁面）
+    =========================================== -->
+    <main id="view-history" class="hidden space-y-4 fade-in">
+
+      <!-- 數據總覽卡片 -->
+      <section class="grid grid-cols-3 gap-2.5">
+        <div class="bg-greige-50 rounded-2xl p-3.5 border border-greige-200/90 shadow-card">
+          <div class="text-[11px] text-greige-500">累積訓練天數</div>
+          <div class="text-lg sm:text-xl font-bold text-greige-900 mt-1 tabular-nums">
+            <span id="stat-total-days">0</span> <span class="text-xs font-normal text-greige-500">天</span>
+          </div>
+        </div>
+        <div class="bg-greige-50 rounded-2xl p-3.5 border border-greige-200/90 shadow-card">
+          <div class="text-[11px] text-greige-500">本月完成</div>
+          <div class="text-lg sm:text-xl font-bold text-greige-900 mt-1 tabular-nums">
+            <span id="stat-month-days">0</span> <span class="text-xs font-normal text-greige-500">天</span>
+          </div>
+        </div>
+        <div class="bg-greige-50 rounded-2xl p-3.5 border border-greige-200/90 shadow-card">
+          <div class="text-[11px] text-greige-500">累積訓練量</div>
+          <div class="text-lg sm:text-xl font-bold text-greige-900 mt-1 tabular-nums">
+            <span id="stat-total-volume">0</span> <span class="text-xs font-normal text-greige-500">kg</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 重量進步追蹤 (PR & 趨勢圖) -->
+      <section class="bg-white rounded-3xl p-4 sm:p-5 border border-[#EEEAE4] shadow-[0_4px_22px_rgba(74,66,57,.035)]">
+        <div class="flex items-center justify-between gap-2 mb-3.5">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-greige-800">重量進步追蹤</h2>
+            <p class="text-[11px] text-greige-500">選擇動作查看個人最高重量 (PR) 與成長曲線</p>
+          </div>
+        </div>
+
+        <!-- 動作下拉選單 -->
+        <select id="progress-exercise-select" onchange="renderProgressChart()"
+          class="w-full bg-greige-100 border border-greige-200 rounded-2xl px-3.5 py-2.5 text-sm font-semibold text-greige-800 focus:outline-none focus:border-greige-600 mb-4">
+          <option value="">尚無動作紀錄</option>
+        </select>
+
+        <!-- PR 與進步幅度指標 -->
+        <div id="pr-metrics-wrap" class="hidden grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-greige-100/80 rounded-2xl p-3 border border-greige-200/70">
+            <div class="text-[11px] text-greige-500">歷史最高重量 (PR)</div>
+            <div id="pr-max-weight" class="text-lg font-bold text-greige-900 mt-0.5 tabular-nums">—</div>
+          </div>
+          <div class="bg-greige-100/80 rounded-2xl p-3 border border-greige-200/70">
+            <div class="text-[11px] text-greige-500">與前次相比</div>
+            <div id="pr-diff-badge" class="text-lg font-bold text-greige-900 mt-0.5 tabular-nums">—</div>
+          </div>
+        </div>
+
+        <!-- SVG 趨勢折線圖容器 -->
+        <div id="progress-chart-container" class="bg-greige-100/60 rounded-2xl p-3 border border-greige-200/70 min-h-[150px] flex items-center justify-center">
+          <p class="text-xs text-greige-400">記錄重量後即可在此檢視成長曲線</p>
+        </div>
+      </section>
+
+      <!-- 歷史訓練日誌 -->
+      <section class="bg-white rounded-3xl p-4 sm:p-5 border border-[#EEEAE4] shadow-[0_4px_22px_rgba(74,66,57,.035)]">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div><h2 class="text-sm sm:text-base font-bold text-greige-800">歷史訓練日誌</h2><p class="text-[11px] text-greige-400 mt-0.5">資料保存在目前瀏覽器，可定期匯出備份</p></div>
+
+          <!-- 部位篩選膠囊 -->
+          <div class="flex items-center gap-1 bg-greige-100 p-1 rounded-xl border border-greige-200/70">
+            <button type="button" onclick="setHistoryFilter('all')" id="filter-btn-all"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-greige-800 text-greige-50">全部</button>
+            <button type="button" onclick="setHistoryFilter('push')" id="filter-btn-push"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-greige-600 hover:text-greige-900">推</button>
+            <button type="button" onclick="setHistoryFilter('pull')" id="filter-btn-pull"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-greige-600 hover:text-greige-900">拉</button>
+            <button type="button" onclick="setHistoryFilter('legs')" id="filter-btn-legs"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-greige-600 hover:text-greige-900">腿</button>
+            <button type="button" onclick="setHistoryFilter('core')" id="filter-btn-core"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-greige-600 hover:text-greige-900">核心</button>
+          </div>
+        </div>
+        <div class="flex gap-2 mb-3">
+          <button type="button" onclick="exportWorkoutData()" class="px-3 py-2 rounded-xl bg-[#F3F0EB] text-xs font-semibold text-greige-700 hover:bg-[#EAE5DE]">匯出備份 JSON</button>
+          <button type="button" onclick="document.getElementById('import-workout-file').click()" class="px-3 py-2 rounded-xl border border-[#EAE5DE] text-xs font-semibold text-greige-600 hover:bg-[#F8F7F4]">匯入備份</button>
+          <input id="import-workout-file" type="file" accept="application/json,.json" class="hidden" onchange="importWorkoutData(event)" />
+        </div>
+
+        <div id="history-logs-list" class="space-y-3">
+          <!-- 由 JS 動態渲染 -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==========================================
+       滑出式「訓練明細紀錄抽屜」
+  =========================================== -->
+  <div id="workout-drawer-backdrop" onclick="closeWorkoutDrawer()"
+    class="fixed inset-0 bg-greige-900/35 backdrop-blur-[2px] z-40 hidden opacity-0 transition-opacity duration-200">
+  </div>
+
+  <aside id="workout-drawer"
+    class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-0 sm:w-[440px] bg-greige-50 z-50 rounded-t-3xl sm:rounded-none sm:rounded-l-3xl shadow-2xl border-t sm:border-l border-greige-200 flex flex-col max-h-[90vh] sm:max-h-screen translate-y-full sm:translate-y-0 sm:translate-x-full transition-transform duration-250 ease-out">
+
+    <!-- 抽屜頂部標題列 -->
+    <div class="px-5 py-4 border-b border-greige-200/80 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2.5">
+        <span id="drawer-type-badge" class="w-8 h-8 rounded-xl bg-push-bg text-push-text flex items-center justify-center font-bold text-sm">
+          推
+        </span>
+        <div>
+          <h3 id="drawer-title" class="text-base font-bold text-greige-900">Push 推力訓練</h3>
+          <p id="drawer-date-label" class="text-xs text-greige-500">2026/11/24</p>
+        </div>
+      </div>
+
+      <button type="button" onclick="closeWorkoutDrawer()"
+        class="btn-press w-8 h-8 rounded-full bg-greige-100 hover:bg-greige-200 text-greige-600 flex items-center justify-center font-bold">
+        ✕
+      </button>
+    </div>
+
+    <!-- 抽屜可滾動內容區 -->
+    <div class="p-5 overflow-y-auto space-y-5 flex-1">
+
+      <!-- 常用動作一鍵點選膠囊區 -->
+      <div>
+        <div class="flex items-center justify-between mb-2.5">
+          <span class="text-xs font-semibold text-greige-700">選擇動作加入 · 自動沿用上次各組數據</span>
+          <button type="button" id="btn-toggle-custom-input" onclick="toggleCustomExerciseBox()"
+            class="btn-press text-[11px] font-semibold text-greige-600 hover:text-greige-900 bg-greige-200/70 hover:bg-greige-300/70 px-2.5 py-1 rounded-full transition-colors">
+            + 自訂動作
+          </button>
+        </div>
+
+        <div id="preset-exercises-wrap" class="flex flex-wrap gap-2">
+          <!-- 由 JS 動態生成對應部位的常用動作膠囊 -->
+        </div>
+
+        <!-- 可展開的極簡自訂動作輸入列（預設收合，減少畫面複雜度） -->
+        <div id="custom-exercise-box" class="hidden mt-3 flex items-center gap-2">
+          <input id="custom-exercise-input" type="text" maxlength="24"
+            placeholder="輸入新動作名稱..."
+            onkeydown="if(event.key==='Enter'){ event.preventDefault(); addCustomExerciseFromInput(); }"
+            class="flex-1 bg-greige-100 border border-greige-200 rounded-2xl px-3.5 py-2.5 text-sm text-greige-800 placeholder-greige-400 focus:outline-none focus:border-greige-600" />
+          <button type="button" onclick="addCustomExerciseFromInput()"
+            class="btn-press px-4 py-2.5 rounded-2xl bg-greige-800 hover:bg-greige-900 text-greige-50 text-xs sm:text-sm font-semibold shrink-0">
+            加入
+          </button>
+        </div>
+      </div>
+
+      <!-- 已加入的動作與明細列表 -->
+      <div id="drawer-exercises-list" class="space-y-3.5">
+        <!-- 由 JS 動態渲染每個動作卡片 -->
+      </div>
+
+    </div>
+
+    <!-- 抽屜底部操作按鈕列 -->
+    <div class="px-5 py-4 border-t border-greige-200/80 bg-greige-50 flex items-center gap-2.5 shrink-0">
+      <button type="button" id="btn-delete-workout" onclick="deleteCurrentTypeWorkout()"
+        class="hidden btn-press px-3.5 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200/80 shrink-0">
+        清除紀錄
+      </button>
+      <button type="button" onclick="saveWorkoutDrawer()"
+        class="btn-press flex-1 py-3 rounded-2xl bg-greige-800 hover:bg-greige-900 text-greige-50 text-sm font-bold shadow-card">
+        完成並儲存紀錄
+      </button>
+    </div>
+  </aside>
+
+  <!-- 輕量級提示 Toast -->
+  <div id="toast-banner"
+    class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-greige-900 text-greige-50 px-4 py-2.5 rounded-full text-xs sm:text-sm font-medium shadow-lg opacity-0 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+    已儲存訓練紀錄
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. 常數與預設資料定義
+    // ==========================================
+    const STORAGE_KEY = 'd_workout_logs_v2'; // 沿用原 key，保留初版既有資料
+    const DEFAULT_SETS_COUNT = 3;
+
+    const WORKOUT_TYPES = {
+      push: {
+        key: 'push',
+        short: '推',
+        label: 'Push 推力',
+        badgeClass: 'bg-push-bg text-push-text border border-push-border',
+        pillClass: 'bg-push-bg text-push-text border-push-border',
+        dotClass: 'bg-push-dot',
+        presets: ['槓鈴臥推', '啞鈴上斜臥推', '啞鈴肩推', '側平舉', '三頭繩索下壓', '蝴蝶機夾胸']
+      },
+      pull: {
+        key: 'pull',
+        short: '拉',
+        label: 'Pull 拉力',
+        badgeClass: 'bg-pull-bg text-pull-text border border-pull-border',
+        pillClass: 'bg-pull-bg text-pull-text border-pull-border',
+        dotClass: 'bg-pull-dot',
+        presets: ['滑輪下拉', '坐姿划船', '槓鈴划船', '引體向上', '臉拉 Face Pull', '啞鈴二頭彎舉']
+      },
+      legs: {
+        key: 'legs',
+        short: '腿',
+        label: 'Legs 下肢',
+        badgeClass: 'bg-legs-bg text-legs-text border border-legs-border',
+        pillClass: 'bg-legs-bg text-legs-text border-legs-border',
+        dotClass: 'bg-legs-dot',
+        presets: ['槓鈴深蹲', '腿推機 Leg Press', '羅馬尼亞硬舉', '腿屈伸', '俯臥腿彎舉', '站姿提踵']
+      },
+      core: {
+        key: 'core',
+        short: '核',
+        label: 'Core 核心',
+        badgeClass: 'bg-core-bg text-core-text border border-core-border',
+        pillClass: 'bg-core-bg text-core-text border-core-border',
+        dotClass: 'bg-core-dot',
+        presets: ['棒式 Plank', '懸垂舉腿', '捲腹 Crunch', '俄羅斯轉體', '健腹輪', '死蟲式']
+      }
+    };
+
+    const MOTIVATIONAL_QUOTES = [
+      '每一次推起與拉起，都在雕刻更強壯的自己。',
+      '一週四練，不求完美，只求比昨天的自己多堅持一組。',
+      '重量不會說謊，你流過的汗水都會變成底氣。',
+      '今天的酸痛，是明天更輕盈、更有力量的伏筆。',
+      '保持節奏，專注每一次發力與呼吸。',
+      '就算只進步 2.5 kg，也是實實在在的突破！'
+    ];
+
+    // ==========================================
+    // 2. 全局狀態管理
+    // ==========================================
+    let logs = {}; // { 'YYYY-MM-DD': { push: { exercises: [{ name, weight, reps }] }, ... } }
+    let selectedDateStr = getTodayDateStr();
+    let calendarYear = new Date().getFullYear();
+    let calendarMonth = new Date().getMonth(); // 0-11
+    let isMonthExpanded = false;
+    let currentTab = 'home';
+    let historyFilter = 'all';
+    let quoteIndex = 0;
+
+    // 抽屜編輯草稿狀態
+    let activeDrawerType = null;
+    let draftExercises = []; // [{ name, sets: [{ weight, reps }] }]
+
+    // ==========================================
+    // 3. 日期與儲存工具函式
+    // ==========================================
+    function formatDateStr(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseDateStr(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function getTodayDateStr() {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function loadLogs() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          logs = JSON.parse(raw) || {};
+        }
+      } catch (e) {
+        console.error('讀取紀錄失敗:', e);
+        logs = {};
+      }
+    }
+
+    function saveLogs() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+      } catch (e) {
+        console.error('儲存紀錄失敗:', e);
+      }
+    }
+
+    // 資料正規化：相容初版單一重量/次數與 2.0 每組獨立紀錄格式。
+    function normalizeExerciseEntry(ex) {
+      if (!ex) return { name: '', weight: '', reps: 10, sets: [{ weight: '', reps: 10 }] };
+      let sets;
+      if (Array.isArray(ex.sets) && ex.sets.length) {
+        sets = ex.sets.map(set => ({
+          weight: set.weight !== undefined ? set.weight : '',
+          reps: set.reps !== undefined ? set.reps : 10
+        }));
+      } else {
+        const weight = ex.weight !== undefined ? ex.weight : '';
+        const reps = ex.reps !== undefined ? ex.reps : 10;
+        sets = Array.from({ length: Math.max(1, Number(ex.setCount) || DEFAULT_SETS_COUNT) }, () => ({ weight, reps }));
+      }
+      return { name: ex.name || '', weight: sets[0]?.weight ?? '', reps: sets[0]?.reps ?? 10, sets };
+    }
+
+    function exerciseVolume(ex) {
+      const norm = normalizeExerciseEntry(ex);
+      return norm.sets.reduce((sum, set) => sum + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0);
+    }
+
+    // 搜尋該動作在 selectedDateStr 之前的最近一次紀錄
+    function findLastExerciseRecord(exerciseName, excludeDateStr) {
+      const sortedDates = Object.keys(logs)
+        .filter(d => d !== excludeDateStr)
+        .sort((a, b) => b.localeCompare(a));
+
+      for (const dateStr of sortedDates) {
+        const dayData = logs[dateStr];
+        if (!dayData) continue;
+        for (const typeKey of Object.keys(dayData)) {
+          const entry = dayData[typeKey];
+          if (!entry || !Array.isArray(entry.exercises)) continue;
+          const found = entry.exercises.find(ex => ex.name === exerciseName);
+          if (found) {
+            const norm = normalizeExerciseEntry(found);
+            return {
+              dateStr,
+              weight: norm.weight,
+              reps: norm.reps,
+              sets: norm.sets
+            };
+          }
+        }
+      }
+      return null;
+    }
+
+    function exportWorkoutData() {
+      const payload = { app: 'D-workout', version: 2, exportedAt: new Date().toISOString(), logs };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `D-workout-backup-${getTodayDateStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('備份檔已匯出');
+    }
+
+    function importWorkoutData(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          const imported = parsed.logs || parsed;
+          if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error('格式不正確');
+          if (!confirm('匯入備份會取代目前瀏覽器中的所有紀錄，確定繼續嗎？建議先匯出目前資料。')) return;
+          logs = imported;
+          saveLogs();
+          renderAllHome();
+          if (currentTab === 'history') renderHistoryPage();
+          showToast('備份資料已匯入');
+        } catch (err) {
+          alert('匯入失敗：檔案格式不正確。');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ==========================================
+    // 4. 頁面初始化與分頁切換
+    // ==========================================
+    function init() {
+      loadLogs();
+      quoteIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+      document.getElementById('quote-text').textContent = MOTIVATIONAL_QUOTES[quoteIndex];
+
+      renderAllHome();
+
+      // 鍵盤 Esc 關閉抽屜
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && activeDrawerType) {
+          closeWorkoutDrawer();
+        }
+      });
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      const homeView = document.getElementById('view-home');
+      const historyView = document.getElementById('view-history');
+      const btnHome = document.getElementById('tab-btn-home');
+      const btnHistory = document.getElementById('tab-btn-history');
+
+      if (tab === 'home') {
+        homeView.classList.remove('hidden');
+        historyView.classList.add('hidden');
+        btnHome.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all bg-greige-50 text-greige-900 shadow-2xs';
+        btnHistory.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-[13px] font-medium transition-all text-greige-600 hover:text-greige-900';
+        renderAllHome();
+      } else {
+        homeView.classList.add('hidden');
+        historyView.classList.remove('hidden');
+        btnHistory.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-[13px] font-semibold transition-all bg-greige-50 text-greige-900 shadow-2xs';
+        btnHome.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-[13px] font-medium transition-all text-greige-600 hover:text-greige-900';
+        renderHistoryPage();
+      }
+    }
+
+    function nextQuote() {
+      quoteIndex = (quoteIndex + 1) % MOTIVATIONAL_QUOTES.length;
+      const el = document.getElementById('quote-text');
+      el.style.opacity = '0.3';
+      setTimeout(() => {
+        el.textContent = MOTIVATIONAL_QUOTES[quoteIndex];
+        el.style.opacity = '1';
+      }, 100);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast-banner');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => {
+        toast.classList.add('opacity-0');
+      }, 2200);
+    }
+
+    // ==========================================
+    // 5. 首頁渲染（本週日程、運動按鈕、月曆）
+    // ==========================================
+    function renderAllHome() {
+      renderWeekSchedule();
+      renderWorkoutButtonsState();
+      renderMonthCalendar();
+    }
+
+    function selectDate(dateStr) {
+      selectedDateStr = dateStr;
+      const d = parseDateStr(dateStr);
+      calendarYear = d.getFullYear();
+      calendarMonth = d.getMonth();
+      renderAllHome();
+    }
+
+    function selectToday() {
+      selectDate(getTodayDateStr());
+    }
+
+    // 取得某日期所屬週一至週日的日期陣列
+    function getWeekDates(baseDateStr) {
+      const base = parseDateStr(baseDateStr);
+      const dayOfWeek = base.getDay(); // 0 (Sun) - 6 (Sat)
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(base);
+      monday.setDate(base.getDate() + diffToMonday);
+
+      const result = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        result.push(d);
+      }
+      return result;
+    }
+
+    function renderWeekSchedule() {
+      const todayStr = getTodayDateStr();
+      const weekDates = getWeekDates(selectedDateStr);
+      const dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+
+      // 更新日期徽章與回到今天按鈕
+      const dateBadge = document.getElementById('selected-date-badge');
+      const backBtn = document.getElementById('btn-back-today');
+      const panelTitle = document.getElementById('workout-panel-title');
+
+      if (selectedDateStr === todayStr) {
+        dateBadge.textContent = '今天';
+        backBtn.classList.add('hidden');
+        panelTitle.textContent = '今天練哪裡？';
+      } else {
+        const d = parseDateStr(selectedDateStr);
+        dateBadge.textContent = `${d.getMonth() + 1}/${d.getDate()}`;
+        backBtn.classList.remove('hidden');
+        panelTitle.textContent = `${d.getMonth() + 1}/${d.getDate()} 練哪裡？`;
+      }
+
+      // 計算本週已完成運動天數
+      let completedDaysCount = 0;
+      const grid = document.getElementById('week-days-grid');
+      grid.innerHTML = '';
+
+      weekDates.forEach((dObj, idx) => {
+        const dStr = formatDateStr(dObj);
+        const dayRecord = logs[dStr] || {};
+        const activeTypes = Object.keys(WORKOUT_TYPES).filter(k => Boolean(dayRecord[k]));
+        if (activeTypes.length > 0) completedDaysCount++;
+
+        const isSelected = dStr === selectedDateStr;
+        const isToday = dStr === todayStr;
+
+        const dotsHtml = activeTypes.length > 0
+          ? `<div class="flex items-center justify-center gap-0.5 mt-1.5 h-1.5">
+              ${activeTypes.map(t => `<span class="w-1.5 h-1.5 rounded-full ${WORKOUT_TYPES[t].dotClass}"></span>`).join('')}
+             </div>`
+          : `<div class="mt-1.5 h-1.5 flex items-center justify-center">
+              <span class="w-1 h-1 rounded-full bg-greige-300/70"></span>
+             </div>`;
+
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.onclick = () => selectDate(dStr);
+        cell.className = `btn-press flex flex-col items-center justify-center py-2.5 rounded-2xl border transition-all ${
+          isSelected
+            ? 'bg-greige-800 text-greige-50 border-greige-800 shadow-card'
+            : activeTypes.length > 0
+              ? 'bg-greige-100/90 text-greige-800 border-greige-300/80 hover:bg-greige-200/70'
+              : 'bg-greige-100/40 text-greige-600 border-transparent hover:bg-greige-100'
+        }`;
+
+        cell.innerHTML = `
+          <span class="text-[10px] font-medium ${isSelected ? 'text-greige-300' : 'text-greige-400'}">${dayLabels[idx]}</span>
+          <span class="text-xs sm:text-sm font-bold mt-0.5 tabular-nums ${isToday && !isSelected ? 'underline decoration-greige-500 underline-offset-4' : ''}">
+            ${dObj.getDate()}
+          </span>
+          ${dotsHtml}
+        `;
+        grid.appendChild(cell);
+      });
+
+      // 更新每週 4 天進度條
+      document.getElementById('weekly-count').textContent = completedDaysCount;
+      const pct = Math.min(100, Math.round((completedDaysCount / 4) * 100));
+      document.getElementById('weekly-progress-bar').style.width = `${pct}%`;
+    }
+
+    function renderWorkoutButtonsState() {
+      const dayRecord = logs[selectedDateStr] || {};
+      const activeTypes = Object.keys(WORKOUT_TYPES).filter(k => Boolean(dayRecord[k]));
+
+      // 狀態小標籤
+      const statusPill = document.getElementById('day-status-pill');
+      if (activeTypes.length > 0) {
+        statusPill.textContent = `已紀錄 ${activeTypes.map(t => WORKOUT_TYPES[t].short).join(' + ')}`;
+        statusPill.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-greige-800 text-greige-50';
+      } else {
+        statusPill.textContent = '尚未紀錄';
+        statusPill.className = 'text-[11px] font-medium px-2.5 py-1 rounded-full bg-greige-100 text-greige-500';
+      }
+
+      // 更新 4 個部位按鈕外觀
+      Object.keys(WORKOUT_TYPES).forEach(typeKey => {
+        const btn = document.getElementById(`btn-type-${typeKey}`);
+        const badge = document.getElementById(`check-${typeKey}`);
+        const isDone = Boolean(dayRecord[typeKey]);
+
+        if (isDone) {
+          badge.classList.remove('hidden');
+          btn.classList.add('ring-1', 'ring-greige-400', 'bg-greige-100');
+        } else {
+          badge.classList.add('hidden');
+          btn.classList.remove('ring-1', 'ring-greige-400', 'bg-greige-100');
+        }
+      });
+
+      // 渲染當日精簡訓練內容摘要
+      const summaryBox = document.getElementById('today-summary-box');
+      if (activeTypes.length === 0) {
+        summaryBox.classList.add('hidden');
+        summaryBox.innerHTML = '';
+        return;
+      }
+
+      summaryBox.classList.remove('hidden');
+      summaryBox.innerHTML = activeTypes.map(typeKey => {
+        const meta = WORKOUT_TYPES[typeKey];
+        const exercises = (dayRecord[typeKey].exercises || []).map(normalizeExerciseEntry);
+
+        const exTags = exercises.length > 0
+          ? exercises.map(ex => {
+              const setCount = ex.sets.length;
+              const topWeight = Math.max(...ex.sets.map(set => Number(set.weight) || 0));
+              return `<span class="inline-flex items-center px-2.5 py-1 rounded-xl bg-white border border-[#EEEAE4] text-[11px] text-greige-700 font-medium">
+                        ${escapeHtml(ex.name)} <span class="text-greige-500 ml-1 tabular-nums">${topWeight ? `${topWeight}kg` : '徒手'} · ${setCount}組</span>
+                      </span>`;
+            }).join('')
+          : `<span class="text-[11px] text-greige-400">已完成打卡（點擊按鈕可補填動作）</span>`;
+
+        return `
+          <div onclick="openWorkoutDrawer('${typeKey}')"
+            class="cursor-pointer rounded-2xl bg-greige-100/50 hover:bg-greige-100 p-3 border border-greige-200/70 transition-colors">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold px-2 py-0.5 rounded-lg ${meta.badgeClass}">${meta.label}</span>
+              <span class="text-[11px] text-greige-400">點擊編輯 ›</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              ${exTags}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // 6. 可展開月曆控制與渲染
+    // ==========================================
+    function toggleMonthCalendar() {
+      isMonthExpanded = !isMonthExpanded;
+      const panel = document.getElementById('month-calendar-panel');
+      const chevron = document.getElementById('month-chevron');
+      const label = document.getElementById('month-toggle-label');
+
+      if (isMonthExpanded) {
+        panel.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+        label.textContent = '收合月曆';
+        renderMonthCalendar();
+      } else {
+        panel.classList.add('hidden');
+        chevron.style.transform = 'rotate(0deg)';
+        label.textContent = '展開月曆';
+      }
+    }
+
+    function changeCalendarMonth(delta) {
+      calendarMonth += delta;
+      if (calendarMonth < 0) {
+        calendarMonth = 11;
+        calendarYear--;
+      } else if (calendarMonth > 11) {
+        calendarMonth = 0;
+        calendarYear++;
+      }
+      renderMonthCalendar();
+    }
+
+    function renderMonthCalendar() {
+      const monthPrefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}`;
+      document.getElementById('calendar-month-title').textContent = `${calendarYear} 年 ${calendarMonth + 1} 月`;
+
+      // 統計該月運動天數與各部位次數
+      let monthWorkoutDays = 0;
+      const typeCounts = { push: 0, pull: 0, legs: 0, core: 0 };
+
+      Object.keys(logs).forEach(dateStr => {
+        if (dateStr.startsWith(monthPrefix)) {
+          const dayData = logs[dateStr];
+          const types = Object.keys(WORKOUT_TYPES).filter(k => Boolean(dayData[k]));
+          if (types.length > 0) {
+            monthWorkoutDays++;
+            types.forEach(t => typeCounts[t]++);
+          }
+        }
+      });
+
+      document.getElementById('month-summary-subtitle').textContent = `${calendarMonth + 1} 月已累積運動 ${monthWorkoutDays} 天`;
+
+      if (!isMonthExpanded) return;
+
+      const grid = document.getElementById('month-calendar-grid');
+      grid.innerHTML = '';
+
+      const firstDay = new Date(calendarYear, calendarMonth, 1);
+      const startWeekday = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // 週一為 0
+      const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+      const todayStr = getTodayDateStr();
+
+      for (let i = 0; i < startWeekday; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'h-10';
+        grid.appendChild(empty);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
+        const dayData = logs[dStr] || {};
+        const activeTypes = Object.keys(WORKOUT_TYPES).filter(k => Boolean(dayData[k]));
+        const isSelected = dStr === selectedDateStr;
+        const isToday = dStr === todayStr;
+
+        const dotsHtml = activeTypes.length > 0
+          ? `<div class="flex items-center justify-center gap-0.5 mt-0.5">
+              ${activeTypes.map(t => `<span class="w-1.5 h-1.5 rounded-full ${WORKOUT_TYPES[t].dotClass}"></span>`).join('')}
+             </div>`
+          : `<div class="h-2"></div>`;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => selectDate(dStr);
+        btn.className = `btn-press h-10 rounded-xl flex flex-col items-center justify-center text-xs tabular-nums transition-all ${
+          isSelected
+            ? 'bg-greige-800 text-greige-50 font-bold'
+            : activeTypes.length > 0
+              ? 'bg-greige-100 text-greige-800 font-semibold border border-greige-200'
+              : 'text-greige-600 hover:bg-greige-100/80'
+        }`;
+
+        btn.innerHTML = `
+          <span class="${isToday && !isSelected ? 'underline decoration-greige-500 underline-offset-2 font-bold' : ''}">${day}</span>
+          ${dotsHtml}
+        `;
+        grid.appendChild(btn);
+      }
+
+      // 更新本月各部位累積次數
+      const statsWrap = document.getElementById('month-type-stats');
+      statsWrap.innerHTML = Object.keys(WORKOUT_TYPES).map(k => {
+        const meta = WORKOUT_TYPES[k];
+        return `
+          <div class="bg-greige-100/70 rounded-xl p-2 text-center border border-greige-200/60">
+            <div class="text-[11px] font-semibold ${meta.pillClass.split(' ')[1]}">${meta.short}</div>
+            <div class="text-sm font-bold text-greige-800 mt-0.5 tabular-nums">${typeCounts[k]} <span class="text-[10px] font-normal text-greige-500">次</span></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // 7. 訓練明細抽屜（極簡大按鈕版）
+    // ==========================================
+    function openWorkoutDrawer(typeKey) {
+      activeDrawerType = typeKey;
+      const meta = WORKOUT_TYPES[typeKey];
+
+      // 設定標題與標籤
+      const badge = document.getElementById('drawer-type-badge');
+      badge.textContent = meta.short;
+      badge.className = `w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm ${meta.badgeClass}`;
+
+      document.getElementById('drawer-title').textContent = `${meta.label} 訓練`;
+      const d = parseDateStr(selectedDateStr);
+      document.getElementById('drawer-date-label').textContent = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+
+      // 載入當日該部位既有資料（若無則預設帶入第一個常用動作方便一鍵儲存）
+      const existing = logs[selectedDateStr] && logs[selectedDateStr][typeKey];
+      const deleteBtn = document.getElementById('btn-delete-workout');
+
+      if (existing) {
+        deleteBtn.classList.remove('hidden');
+        draftExercises = (existing.exercises || []).map(normalizeExerciseEntry);
+      } else {
+        deleteBtn.classList.add('hidden');
+        draftExercises = [];
+      }
+
+      // 重設自訂動作輸入列
+      document.getElementById('custom-exercise-input').value = '';
+      const customBox = document.getElementById('custom-exercise-box');
+      const customToggleBtn = document.getElementById('btn-toggle-custom-input');
+      if (customBox) customBox.classList.add('hidden');
+      if (customToggleBtn) customToggleBtn.textContent = '+ 自訂動作';
+
+      renderDrawerPresets();
+      renderDrawerExercises();
+
+      // 顯示抽屜動畫
+      const backdrop = document.getElementById('workout-drawer-backdrop');
+      const drawer = document.getElementById('workout-drawer');
+      backdrop.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        backdrop.classList.remove('opacity-0');
+        drawer.classList.remove('translate-y-full', 'sm:translate-x-full');
+      });
+    }
+
+    function closeWorkoutDrawer() {
+      const backdrop = document.getElementById('workout-drawer-backdrop');
+      const drawer = document.getElementById('workout-drawer');
+
+      backdrop.classList.add('opacity-0');
+      drawer.classList.add('translate-y-full', 'sm:translate-x-full');
+
+      setTimeout(() => {
+        backdrop.classList.add('hidden');
+        activeDrawerType = null;
+      }, 220);
+    }
+
+    function renderDrawerPresets() {
+      if (!activeDrawerType) return;
+      const presets = WORKOUT_TYPES[activeDrawerType].presets;
+      const wrap = document.getElementById('preset-exercises-wrap');
+      wrap.innerHTML = '';
+
+      presets.forEach(name => {
+        const isSelected = draftExercises.some(ex => ex.name === name);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => togglePresetExercise(name);
+
+        if (isSelected) {
+          btn.className = 'btn-press px-3.5 py-2 rounded-2xl text-xs sm:text-[13px] font-semibold bg-greige-800 text-greige-50 shadow-2xs transition-all';
+          btn.textContent = `✓ ${name}`;
+        } else {
+          btn.className = 'btn-press px-3.5 py-2 rounded-2xl text-xs sm:text-[13px] font-medium bg-greige-100 hover:bg-greige-200/80 text-greige-700 border border-greige-200 transition-all';
+          btn.textContent = `+ ${name}`;
+        }
+        wrap.appendChild(btn);
+      });
+    }
+
+    function toggleCustomExerciseBox() {
+      const box = document.getElementById('custom-exercise-box');
+      const btn = document.getElementById('btn-toggle-custom-input');
+      const input = document.getElementById('custom-exercise-input');
+      if (!box || !btn) return;
+
+      const isHidden = box.classList.contains('hidden');
+      if (isHidden) {
+        box.classList.remove('hidden');
+        btn.textContent = '收合輸入';
+        setTimeout(() => input && input.focus(), 50);
+      } else {
+        box.classList.add('hidden');
+        btn.textContent = '+ 自訂動作';
+      }
+    }
+
+    function togglePresetExercise(name) {
+      const existingIdx = draftExercises.findIndex(ex => ex.name === name);
+      if (existingIdx >= 0) {
+        draftExercises.splice(existingIdx, 1);
+      } else {
+        addExerciseToDraft(name);
+      }
+      renderDrawerPresets();
+      renderDrawerExercises();
+    }
+
+    function addCustomExerciseFromInput() {
+      const input = document.getElementById('custom-exercise-input');
+      const name = input.value.trim();
+      if (!name) return;
+
+      if (!draftExercises.some(ex => ex.name === name)) {
+        addExerciseToDraft(name);
+      }
+      input.value = '';
+      const box = document.getElementById('custom-exercise-box');
+      const btn = document.getElementById('btn-toggle-custom-input');
+      if (box) box.classList.add('hidden');
+      if (btn) btn.textContent = '+ 自訂動作';
+
+      renderDrawerPresets();
+      renderDrawerExercises();
+    }
+
+    function addExerciseToDraft(name) {
+      const last = findLastExerciseRecord(name, selectedDateStr);
+      const sets = last?.sets?.length
+        ? last.sets.map(set => ({ weight: set.weight, reps: set.reps }))
+        : Array.from({ length: DEFAULT_SETS_COUNT }, () => ({ weight: 20, reps: 10 }));
+      draftExercises.push({ name, sets });
+    }
+
+    function addDraftSet(exIdx) {
+      const ex = draftExercises[exIdx];
+      if (!ex) return;
+      const previous = ex.sets[ex.sets.length - 1] || { weight: 0, reps: 10 };
+      ex.sets.push({ weight: previous.weight, reps: previous.reps });
+      renderDrawerExercises();
+    }
+
+    function removeDraftSet(exIdx, setIdx) {
+      const ex = draftExercises[exIdx];
+      if (!ex || ex.sets.length <= 1) return;
+      ex.sets.splice(setIdx, 1);
+      renderDrawerExercises();
+    }
+
+    function updateDraftSet(exIdx, setIdx, field, value) {
+      if (!draftExercises[exIdx]?.sets[setIdx]) return;
+      draftExercises[exIdx].sets[setIdx][field] = value;
+    }
+
+    function removeDraftExercise(idx) {
+      draftExercises.splice(idx, 1);
+      renderDrawerPresets();
+      renderDrawerExercises();
+    }
+
+    function updateDraftField(exIdx, field, val) {
+      if (!draftExercises[exIdx]) return;
+      draftExercises[exIdx][field] = val;
+    }
+
+    function adjustDraftWeight(exIdx, setIdx, delta) {
+      const set = draftExercises[exIdx]?.sets[setIdx];
+      if (!set) return;
+      const cur = parseFloat(set.weight) || 0;
+      set.weight = Math.max(0, Math.round((cur + delta) * 10) / 10);
+      renderDrawerExercises();
+    }
+
+    function adjustDraftReps(exIdx, setIdx, delta) {
+      const set = draftExercises[exIdx]?.sets[setIdx];
+      if (!set) return;
+      set.reps = Math.max(1, (parseInt(set.reps, 10) || 0) + delta);
+      renderDrawerExercises();
+    }
+
+    function renderDrawerExercises() {
+      const container = document.getElementById('drawer-exercises-list');
+      container.innerHTML = '';
+      if (!draftExercises.length) {
+        container.innerHTML = `<div class="rounded-2xl border border-dashed border-greige-300 bg-white p-7 text-center"><p class="text-sm font-medium text-greige-600">尚未加入訓練動作</p><p class="text-xs text-greige-400 mt-1">從上方選擇動作，開始建立今天的訓練內容。</p></div>`;
+        return;
+      }
+      draftExercises.forEach((ex, exIdx) => {
+        const last = findLastExerciseRecord(ex.name, selectedDateStr);
+        const lastHint = last ? `<span class="text-[11px] text-greige-500 bg-[#F3F0EB] px-2 py-1 rounded-full">上次 ${Number(last.dateStr.slice(5,7))}/${Number(last.dateStr.slice(8,10))} · ${last.weight || '徒手'}${last.weight ? 'kg' : ''} × ${last.reps}</span>` : '';
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl p-3.5 border border-[#EAE5DE] shadow-[0_2px_10px_rgba(74,66,57,.035)]';
+        const rows = ex.sets.map((set, setIdx) => `
+          <div class="grid grid-cols-[34px_1fr_1fr_34px] items-center gap-2 py-2 ${setIdx ? 'border-t border-[#F0ECE6]' : ''}">
+            <span class="text-xs font-semibold text-greige-400 text-center">${setIdx + 1}</span>
+            <label class="min-w-0"><span class="block text-[10px] text-greige-400 mb-1">重量 kg</span><input type="number" min="0" step="0.5" inputmode="decimal" value="${escapeHtml(set.weight)}" oninput="updateDraftSet(${exIdx},${setIdx},'weight',this.value)" class="w-full bg-[#F8F7F4] rounded-xl px-2 py-2 text-center text-base font-semibold text-greige-800 focus:outline-none focus:ring-1 focus:ring-greige-400" /></label>
+            <label class="min-w-0"><span class="block text-[10px] text-greige-400 mb-1">次數 reps</span><input type="number" min="1" step="1" inputmode="numeric" value="${escapeHtml(set.reps)}" oninput="updateDraftSet(${exIdx},${setIdx},'reps',this.value)" class="w-full bg-[#F8F7F4] rounded-xl px-2 py-2 text-center text-base font-semibold text-greige-800 focus:outline-none focus:ring-1 focus:ring-greige-400" /></label>
+            <button type="button" onclick="removeDraftSet(${exIdx},${setIdx})" ${ex.sets.length <= 1 ? 'disabled' : ''} class="h-8 w-8 rounded-lg text-greige-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-20" aria-label="移除此組">−</button>
+          </div>`).join('');
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2 mb-1"><div class="min-w-0"><h4 class="text-sm font-bold text-greige-900">${escapeHtml(ex.name)}</h4><div class="mt-1">${lastHint}</div></div><button type="button" onclick="removeDraftExercise(${exIdx})" class="text-xs text-greige-400 hover:text-red-600 px-2 py-1">移除動作</button></div>
+          <div class="mt-2">${rows}</div>
+          <button type="button" onclick="addDraftSet(${exIdx})" class="mt-2 w-full py-2 rounded-xl border border-dashed border-[#D8D0C5] text-xs font-semibold text-greige-600 hover:bg-[#F8F7F4]">＋ 新增一組</button>`;
+        container.appendChild(card);
+      });
+    }
+
+    function saveWorkoutDrawer() {
+      if (!activeDrawerType) return;
+      if (!logs[selectedDateStr]) {
+        logs[selectedDateStr] = {};
+      }
+
+      const cleanedExercises = draftExercises.map(ex => ({
+        name: ex.name,
+        sets: ex.sets.map(set => ({
+          weight: set.weight === '' ? 0 : Math.max(0, Number(set.weight) || 0),
+          reps: Math.max(0, Number(set.reps) || 0)
+        }))
+      }));
+
+      logs[selectedDateStr][activeDrawerType] = {
+        exercises: cleanedExercises,
+        updatedAt: Date.now()
+      };
+
+      saveLogs();
+      const label = WORKOUT_TYPES[activeDrawerType].label;
+      closeWorkoutDrawer();
+      renderAllHome();
+      showToast(`太棒了！已儲存 ${label} 紀錄`);
+    }
+
+    function deleteCurrentTypeWorkout() {
+      if (!activeDrawerType) return;
+      if (logs[selectedDateStr] && logs[selectedDateStr][activeDrawerType]) {
+        delete logs[selectedDateStr][activeDrawerType];
+        if (Object.keys(logs[selectedDateStr]).length === 0) {
+          delete logs[selectedDateStr];
+        }
+        saveLogs();
+      }
+      closeWorkoutDrawer();
+      renderAllHome();
+      showToast('已清除該項訓練紀錄');
+    }
+
+    // ==========================================
+    // 8. 獨立分頁：「紀錄與進步」渲染
+    // ==========================================
+    function renderHistoryPage() {
+      renderTopStats();
+      populateProgressExerciseSelect();
+      renderProgressChart();
+      renderHistoryLogsList();
+    }
+
+    function renderTopStats() {
+      const allDates = Object.keys(logs).filter(d => {
+        const day = logs[d];
+        return day && Object.keys(WORKOUT_TYPES).some(k => Boolean(day[k]));
+      });
+
+      const currentMonthPrefix = getTodayDateStr().slice(0, 7);
+      const monthDays = allDates.filter(d => d.startsWith(currentMonthPrefix)).length;
+
+      let totalVolume = 0;
+      allDates.forEach(d => {
+        const day = logs[d];
+        Object.keys(WORKOUT_TYPES).forEach(k => {
+          if (day[k] && Array.isArray(day[k].exercises)) {
+            day[k].exercises.forEach(rawEx => {
+              totalVolume += exerciseVolume(rawEx);
+            });
+          }
+        });
+      });
+
+      document.getElementById('stat-total-days').textContent = allDates.length;
+      document.getElementById('stat-month-days').textContent = monthDays;
+      document.getElementById('stat-total-volume').textContent = totalVolume.toLocaleString();
+    }
+
+    function populateProgressExerciseSelect() {
+      const select = document.getElementById('progress-exercise-select');
+      const prevSelected = select.value;
+      const exerciseSet = new Set();
+
+      Object.values(logs).forEach(dayData => {
+        if (!dayData) return;
+        Object.keys(WORKOUT_TYPES).forEach(k => {
+          if (dayData[k] && Array.isArray(dayData[k].exercises)) {
+            dayData[k].exercises.forEach(ex => {
+              if (ex && ex.name) exerciseSet.add(ex.name);
+            });
+          }
+        });
+      });
+
+      const names = Array.from(exerciseSet);
+      if (names.length === 0) {
+        select.innerHTML = '<option value="">尚無動作紀錄（先去首頁記錄一次吧！）</option>';
+        return;
+      }
+
+      select.innerHTML = names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+      if (prevSelected && names.includes(prevSelected)) {
+        select.value = prevSelected;
+      }
+    }
+
+    function renderProgressChart() {
+      const select = document.getElementById('progress-exercise-select');
+      const targetName = select.value;
+      const metricsWrap = document.getElementById('pr-metrics-wrap');
+      const chartContainer = document.getElementById('progress-chart-container');
+
+      if (!targetName) {
+        metricsWrap.classList.add('hidden');
+        chartContainer.innerHTML = '<p class="text-xs text-greige-400">記錄重量後即可在此檢視成長曲線</p>';
+        return;
+      }
+
+      // 依日期升序收集該動作歷次成績
+      const points = [];
+      Object.keys(logs).sort().forEach(dateStr => {
+        const dayData = logs[dateStr];
+        if (!dayData) return;
+        Object.keys(WORKOUT_TYPES).forEach(k => {
+          if (dayData[k] && Array.isArray(dayData[k].exercises)) {
+            const found = dayData[k].exercises.find(ex => ex.name === targetName);
+            if (found) {
+              const norm = normalizeExerciseEntry(found);
+              points.push({
+                dateStr,
+                weight: Math.max(...norm.sets.map(set => Number(set.weight) || 0)),
+                volume: exerciseVolume(found),
+                reps: norm.reps
+              });
+            }
+          }
+        });
+      });
+
+      if (points.length === 0) {
+        metricsWrap.classList.add('hidden');
+        return;
+      }
+
+      metricsWrap.classList.remove('hidden');
+      const maxWeight = Math.max(...points.map(p => p.weight));
+      document.getElementById('pr-max-weight').textContent = `${maxWeight} kg`;
+
+      const diffEl = document.getElementById('pr-diff-badge');
+      if (points.length >= 2) {
+        const latest = points[points.length - 1].weight;
+        const prev = points[points.length - 2].weight;
+        const diff = Math.round((latest - prev) * 10) / 10;
+        if (diff > 0) {
+          diffEl.textContent = `+${diff} kg ↑`;
+          diffEl.className = 'text-lg font-bold text-pull-text mt-0.5 tabular-nums';
+        } else if (diff < 0) {
+          diffEl.textContent = `${diff} kg ↓`;
+          diffEl.className = 'text-lg font-bold text-push-text mt-0.5 tabular-nums';
+        } else {
+          diffEl.textContent = '持平 (0 kg)';
+          diffEl.className = 'text-lg font-bold text-greige-700 mt-0.5 tabular-nums';
+        }
+      } else {
+        diffEl.textContent = '首次紀錄';
+        diffEl.className = 'text-base font-bold text-greige-600 mt-0.5';
+      }
+
+      // 繪製極簡質感 SVG 折線圖
+      const recentPoints = points.slice(-8);
+      const width = 420;
+      const height = 140;
+      const padX = 34;
+      const padY = 26;
+
+      const weights = recentPoints.map(p => p.weight);
+      const minW = Math.min(...weights);
+      const maxW = Math.max(...weights);
+      const span = maxW - minW || 10;
+
+      const coords = recentPoints.map((p, i) => {
+        const x = recentPoints.length === 1
+          ? width / 2
+          : padX + (i / (recentPoints.length - 1)) * (width - padX * 2);
+        const y = height - padY - ((p.weight - minW) / span) * (height - padY * 2);
+        return { x, y, ...p };
+      });
+
+      const polylineStr = coords.map(c => `${c.x},${c.y}`).join(' ');
+
+      const dotsSvg = coords.map(c => {
+        const dParts = c.dateStr.split('-');
+        const label = `${Number(dParts[1])}/${Number(dParts[2])}`;
+        return `
+          <g>
+            <circle cx="${c.x}" cy="${c.y}" r="4.5" fill="#4A4239" stroke="#FAF9F7" stroke-width="2" />
+            <text x="${c.x}" y="${c.y - 10}" text-anchor="middle" font-size="10" font-weight="700" fill="#4A4239">${c.weight}kg</text>
+            <text x="${c.x}" y="${height - 6}" text-anchor="middle" font-size="9.5" fill="#8E7F71">${label}</text>
+          </g>
+        `;
+      }).join('');
+
+      chartContainer.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" class="w-full h-36 overflow-visible">
+          ${coords.length > 1 ? `<polyline fill="none" stroke="#8E7F71" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${polylineStr}" />` : ''}
+          ${dotsSvg}
+        </svg>
+      `;
+    }
+
+    function setHistoryFilter(filterKey) {
+      historyFilter = filterKey;
+      ['all', 'push', 'pull', 'legs', 'core'].forEach(k => {
+        const btn = document.getElementById(`filter-btn-${k}`);
+        if (k === filterKey) {
+          btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-greige-800 text-greige-50';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-medium text-greige-600 hover:text-greige-900';
+        }
+      });
+      renderHistoryLogsList();
+    }
+
+    function renderHistoryLogsList() {
+      const container = document.getElementById('history-logs-list');
+      const dates = Object.keys(logs).sort((a, b) => b.localeCompare(a));
+
+      const cardsHtml = [];
+      dates.forEach(dateStr => {
+        const dayData = logs[dateStr];
+        if (!dayData) return;
+
+        const matchingTypes = Object.keys(WORKOUT_TYPES).filter(k => {
+          if (!dayData[k]) return false;
+          return historyFilter === 'all' || historyFilter === k;
+        });
+
+        if (matchingTypes.length === 0) return;
+
+        const d = parseDateStr(dateStr);
+        const weekdayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+        const formattedDate = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} · ${weekdayNames[d.getDay()]}`;
+
+        const sectionsHtml = matchingTypes.map(typeKey => {
+          const meta = WORKOUT_TYPES[typeKey];
+          const exercises = (dayData[typeKey].exercises || []).map(normalizeExerciseEntry);
+
+          const exListHtml = exercises.length > 0
+            ? `<div class="mt-2 space-y-1.5">
+                ${exercises.map(ex => {
+                  const setSummary = ex.sets.map((set, i) => `${Number(set.weight) > 0 ? `${set.weight}kg` : '徒手'} × ${set.reps}`).join(' / ');
+                  return `
+                    <div class="flex items-start justify-between gap-3 text-xs bg-white px-3 py-2.5 rounded-xl border border-[#EEEAE4]">
+                      <span class="font-semibold text-greige-800">${escapeHtml(ex.name)}</span>
+                      <span class="text-greige-600 font-medium tabular-nums text-right">${setSummary}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>`
+            : `<p class="text-[11px] text-greige-400 mt-1.5">完成部位打卡</p>`;
+
+          return `
+            <div class="pt-2.5 first:pt-0">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-lg ${meta.badgeClass}">${meta.label}</span>
+                <button type="button" onclick="editHistoryItem('${dateStr}', '${typeKey}')"
+                  class="text-[11px] font-medium text-greige-500 hover:text-greige-900">
+                  編輯明細 ›
+                </button>
+              </div>
+              ${exListHtml}
+            </div>
+          `;
+        }).join('');
+
+        cardsHtml.push(`
+          <div class="bg-white rounded-2xl p-3.5 border border-[#EEEAE4] space-y-2.5">
+            <div class="text-xs font-bold text-greige-700 tabular-nums border-b border-greige-200/70 pb-2">
+              ${formattedDate}
+            </div>
+            ${sectionsHtml}
+          </div>
+        `);
+      });
+
+      if (cardsHtml.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-xs text-greige-400">
+            目前沒有符合條件的訓練紀錄
+          </div>
+        `;
+      } else {
+        container.innerHTML = cardsHtml.join('');
+      }
+    }
+
+    function editHistoryItem(dateStr, typeKey) {
+      selectDate(dateStr);
+      switchTab('home');
+      setTimeout(() => {
+        openWorkoutDrawer(typeKey);
+      }, 60);
+    }
+
+    // 啟動應用程式
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
